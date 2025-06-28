@@ -75,12 +75,12 @@ jobs:
           path: artifacts/${{ env.ARTIFACT_NAME }}.${{ env.ARTIFACT_SUFFIX }}
 
   build_and_test_macos:
-    name: Build & Test (macOS)
+    name: Build & Package (macOS)
     runs-on: macos-latest
     env:
-      TARGET: aarch64-apple-darwin
+      TARGET: x86_64-apple-darwin
       ARTIFACT_SUFFIX: tar.gz
-      ARTIFACT_NAME: blt-macos-aarch64
+      ARTIFACT_NAME: blt-macos-x86_64
     steps:
       - uses: actions/checkout@v4
 
