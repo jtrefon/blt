@@ -105,7 +105,7 @@ blt-tokenize \
   --output  tokens.bin      # Path or '-' for stdout
   --merges  merges.txt      # Optional BPE merge rules
   --patch   patch.yml       # Optional patch config
-  --type    text|audio|bin  # Content-type token
+  --type    text|audio|bin|video  # Content-type token
   --threads 8               # Override worker count
   --memcap  80%             # Max RAM usage fraction
   --chunksize 4MB           # Min/Max chunk size bounds

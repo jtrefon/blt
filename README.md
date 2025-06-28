@@ -58,7 +58,7 @@ blt-tokenize \
   --output  <path/to/output>  # '-' for stdout
   --merges  <path/to/merges.txt>   # Optional BPE merges file
   --patch   <path/to/patch.yml>    # Optional patch config
-  --type    text|audio|bin    # Prepend content-type token
+  --type    text|audio|bin|video # Prepend content-type token
   --threads <num>             # Override worker count (default: detected cores)
   --memcap  <percent>         # Max RAM usage fraction (default: 80%)
   --chunksize <size>          # Min/Max chunk size (e.g. 4MB)

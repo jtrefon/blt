@@ -19,19 +19,21 @@ use tokio::sync::mpsc; // For passing results from tasks // Added AsyncReadExt
 pub use crate::utils::parse_chunk_size_str; // Re-export for main.rs if it still needs it (it does for CLI parsing)
 pub type BpeMerges = HashMap<(u16, u16), u16>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)] // Added PartialEq for tests
 pub enum ContentType {
     Text,
     Audio,
     Bin,
+    Video, // Added Video
 }
 
 impl ContentType {
     pub fn get_token_value(&self) -> u16 {
         match self {
-            ContentType::Text => 0xFF01,
-            ContentType::Audio => 0xFF02,
-            ContentType::Bin => 0xFF03,
+            ContentType::Text => 0xFF01,  // Existing
+            ContentType::Audio => 0xFF02, // Existing
+            ContentType::Bin => 0xFF03,   // Existing
+            ContentType::Video => 0xFF04, // New token for Video
         }
     }
 }
@@ -367,6 +369,7 @@ mod tests {
         assert_eq!(ContentType::Text.get_token_value(), 0xFF01);
         assert_eq!(ContentType::Audio.get_token_value(), 0xFF02);
         assert_eq!(ContentType::Bin.get_token_value(), 0xFF03);
+        assert_eq!(ContentType::Video.get_token_value(), 0xFF04); // Test for Video
     }
 
     // Add more tests for lib.rs specific logic if any parts can be unit tested in isolation.
