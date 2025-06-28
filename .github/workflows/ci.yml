@@ -63,10 +63,12 @@ jobs:
       - name: Install Zig (for cross-compilation)
         if: matrix.use_zig == true
         run: |
-          wget https://ziglang.org/download/0.12.0/zig-linux-x86_64-0.12.0.tar.xz
-          tar -xf zig-linux-x86_64-0.12.0.tar.xz
-          echo "$(pwd)/zig-linux-x86_64-0.12.0" >> $GITHUB_PATH
-          echo "ZIG_PATH=$(pwd)/zig-linux-x86_64-0.12.0" >> $GITHUB_ENV
+          # Install Zig 0.12.0 (latest stable)
+          ZIG_VERSION="0.12.0"
+          wget https://ziglang.org/download/$ZIG_VERSION/zig-linux-x86_64-$ZIG_VERSION.tar.xz
+          tar -xf zig-linux-x86_64-$ZIG_VERSION.tar.xz
+          echo "$(pwd)/zig-linux-x86_64-$ZIG_VERSION" >> $GITHUB_PATH
+          echo "ZIG_PATH=$(pwd)/zig-linux-x86_64-$ZIG_VERSION" >> $GITHUB_ENV
 
       - name: Build
         env:
