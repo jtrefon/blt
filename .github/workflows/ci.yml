@@ -62,16 +62,21 @@ jobs:
 
       - name: Install Zig (for macOS cross-compilation)
         if: matrix.os_name == 'macos'  # Only install Zig for macOS cross-compilation
-        uses: euantorano/setup-zig@v1.2.2
-        with:
-          version: '0.11.0'
-        id: zig
+        run: |
+          # Install Zig 0.11.0 directly
+          ZIG_VERSION="0.11.0"
+          ZIG_URL="https://ziglang.org/download/$ZIG_VERSION/zig-linux-x86_64-$ZIG_VERSION.tar.xz"
+          echo "Downloading Zig from: $ZIG_URL"
+          curl -L $ZIG_URL -o zig.tar.xz
+          tar -xf zig.tar.xz
+          echo "$(pwd)/zig-linux-x86_64-$ZIG_VERSION" >> $GITHUB_PATH
+          echo "ZIG_BIN=$(pwd)/zig-linux-x86_64-$ZIG_VERSION/zig" >> $GITHUB_ENV
 
       - name: Build
         env:
-          CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER: ${{ matrix.os_name == 'macos' && 'zig cc -target aarch64-macos-gnu' || '' }}
-          CC_aarch64_apple_darwin: ${{ matrix.os_name == 'macos' && 'zig cc -target aarch64-macos-gnu' || '' }}
-          CXX_aarch64_apple_darwin: ${{ matrix.os_name == 'macos' && 'zig c++ -target aarch64-macos-gnu' || '' }}
+          CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER: ${{ matrix.os_name == 'macos' && '$ZIG_BIN cc -target aarch64-macos-gnu' || '' }}
+          CC_aarch64_apple_darwin: ${{ matrix.os_name == 'macos' && '$ZIG_BIN cc -target aarch64-macos-gnu' || '' }}
+          CXX_aarch64_apple_darwin: ${{ matrix.os_name == 'macos' && '$ZIG_BIN c++ -target aarch64-macos-gnu' || '' }}
         run: |
           cargo build --release --target ${{ matrix.target }}
 
