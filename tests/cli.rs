@@ -1,14 +1,18 @@
-use std::fs::{File}; // Removed 'self'
+use std::fs::File; // Removed 'self'
 use std::io::{Read, Write};
-use std::process::{Command, Stdio};
 use std::path::PathBuf;
+use std::process::{Command, Stdio};
 use tempfile::NamedTempFile;
 
 // Helper to get the path to the compiled binary
 fn get_cli_binary_path() -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("target");
-    path.push(if cfg!(debug_assertions) { "debug" } else { "release" });
+    path.push(if cfg!(debug_assertions) {
+        "debug"
+    } else {
+        "release"
+    });
     path.push("blt"); // Name of the binary
     path
 }
@@ -22,7 +26,9 @@ fn test_cli_stdin_stdout() {
     let mut child = cmd.spawn().expect("Failed to spawn CLI process");
     {
         let stdin = child.stdin.as_mut().expect("Failed to open stdin");
-        stdin.write_all(b"hello world").expect("Failed to write to stdin");
+        stdin
+            .write_all(b"hello world")
+            .expect("Failed to write to stdin");
     } // stdin is closed when it goes out of scope
 
     let output = child.wait_with_output().expect("Failed to read stdout");
@@ -45,10 +51,11 @@ fn test_cli_input_output_files() {
     // The NamedTempFile will be deleted when output_file_path_holder goes out of scope.
     let output_file_path_holder = output_file.into_temp_path();
 
-
     let mut cmd = Command::new(cli_path);
-    cmd.arg("--input").arg(input_path)
-       .arg("--output").arg(&output_file_path_holder);
+    cmd.arg("--input")
+        .arg(input_path)
+        .arg("--output")
+        .arg(&output_file_path_holder);
 
     let status = cmd.status().expect("Failed to run CLI process");
     assert!(status.success());
@@ -98,7 +105,9 @@ fn test_cli_bpe_merges() {
     let mut child = cmd.spawn().expect("Failed to spawn CLI process");
     {
         let stdin = child.stdin.as_mut().expect("Failed to open stdin");
-        stdin.write_all(b"ab c ab").expect("Failed to write to stdin");
+        stdin
+            .write_all(b"ab c ab")
+            .expect("Failed to write to stdin");
     }
 
     let output = child.wait_with_output().expect("Failed to read stdout");
@@ -127,7 +136,9 @@ fn test_cli_chunksize_argument() {
     let mut child = cmd.spawn().expect("Failed to spawn CLI process");
     {
         let stdin = child.stdin.as_mut().expect("Failed to open stdin");
-        stdin.write_all(b"some data").expect("Failed to write to stdin");
+        stdin
+            .write_all(b"some data")
+            .expect("Failed to write to stdin");
     }
     let output = child.wait_with_output().expect("Failed to read stdout");
     assert!(output.status.success());
@@ -145,7 +156,9 @@ fn test_cli_threads_argument() {
     let mut child = cmd.spawn().expect("Failed to spawn CLI process");
     {
         let stdin = child.stdin.as_mut().expect("Failed to open stdin");
-        stdin.write_all(b"thread test").expect("Failed to write to stdin");
+        stdin
+            .write_all(b"thread test")
+            .expect("Failed to write to stdin");
     }
     let output = child.wait_with_output().expect("Failed to read stdout");
     assert!(output.status.success());

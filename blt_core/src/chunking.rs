@@ -2,11 +2,10 @@ use crate::CoreConfig;
 use sysinfo::System; // Removed SystemExt from direct import
 
 // Default chunk sizes if not specified by user and dynamic calculation fails or is bounded.
-const DEFAULT_MIN_CHUNK_SIZE_BYTES: usize = 1 * 1024 * 1024; // 1MB
+const DEFAULT_MIN_CHUNK_SIZE_BYTES: usize = 1024 * 1024; // 1MB (1 * 1024 * 1024)
 const DEFAULT_MAX_CHUNK_SIZE_BYTES: usize = 16 * 1024 * 1024; // 16MB
 const ABSOLUTE_MIN_CHUNK_SIZE: usize = 256 * 1024; // 256KB, absolute floor
 const ABSOLUTE_MAX_CHUNK_SIZE: usize = 128 * 1024 * 1024; // 128MB, absolute ceiling for auto-calc
-
 
 /// Determines the effective chunk size to use for processing.
 /// If `config.cli_chunk_size` is Some, it's used directly (respecting absolute min/max).
@@ -26,7 +25,8 @@ pub fn get_effective_chunk_size(config: &CoreConfig) -> usize {
 
     // Memory available for token buffers (e.g., 80% of total RAM, as per mem_cap_percent)
     // Convert mem_cap_percent (u8) to f64 for calculation
-    let usable_ram_for_buffers = (total_ram_bytes as f64 * (config.mem_cap_percent as f64 / 100.0)) as u64;
+    let usable_ram_for_buffers =
+        (total_ram_bytes as f64 * (config.mem_cap_percent as f64 / 100.0)) as u64;
 
     // Divide usable RAM by number of threads to get per-thread RAM budget.
     // Add a buffer factor (e.g., 2) because each chunk might be held in memory
@@ -43,10 +43,10 @@ pub fn get_effective_chunk_size(config: &CoreConfig) -> usize {
     let calculated_chunk_size = (ram_per_thread_budget / 4) as usize;
 
     // Clamp the dynamically calculated chunk size to sensible defaults and absolute limits.
-    calculated_chunk_size.clamp(DEFAULT_MIN_CHUNK_SIZE_BYTES, DEFAULT_MAX_CHUNK_SIZE_BYTES)
-                         .clamp(ABSOLUTE_MIN_CHUNK_SIZE, ABSOLUTE_MAX_CHUNK_SIZE)
+    calculated_chunk_size
+        .clamp(DEFAULT_MIN_CHUNK_SIZE_BYTES, DEFAULT_MAX_CHUNK_SIZE_BYTES)
+        .clamp(ABSOLUTE_MIN_CHUNK_SIZE, ABSOLUTE_MAX_CHUNK_SIZE)
 }
-
 
 // This function is a placeholder from before, we'll remove or integrate it.
 // pub fn calculate_chunk_size(config: &CoreConfig, total_ram_gb: f32) -> usize {
@@ -56,14 +56,17 @@ pub fn get_effective_chunk_size(config: &CoreConfig) -> usize {
 //     get_effective_chunk_size(config) // New logic
 // }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     // use crate::{ContentType, BpeMerges}; // Currently not needed for these specific tests
     // use std::sync::Arc; // Currently not needed for these specific tests
 
-    fn create_test_config(cli_chunk_size: Option<usize>, num_threads: usize, mem_cap_percent: u8) -> CoreConfig {
+    fn create_test_config(
+        cli_chunk_size: Option<usize>,
+        num_threads: usize,
+        mem_cap_percent: u8,
+    ) -> CoreConfig {
         CoreConfig {
             input: None,
             output: None,
@@ -83,10 +86,16 @@ mod tests {
 
         // Test clamping with CLI override
         let config_too_small = create_test_config(Some(10 * 1024), 4, 80); // 10KB
-        assert_eq!(get_effective_chunk_size(&config_too_small), ABSOLUTE_MIN_CHUNK_SIZE);
+        assert_eq!(
+            get_effective_chunk_size(&config_too_small),
+            ABSOLUTE_MIN_CHUNK_SIZE
+        );
 
         let config_too_large = create_test_config(Some(200 * 1024 * 1024), 4, 80); // 200MB
-        assert_eq!(get_effective_chunk_size(&config_too_large), ABSOLUTE_MAX_CHUNK_SIZE);
+        assert_eq!(
+            get_effective_chunk_size(&config_too_large),
+            ABSOLUTE_MAX_CHUNK_SIZE
+        );
     }
 
     #[test]
@@ -103,19 +112,24 @@ mod tests {
         assert!(dynamic_size >= ABSOLUTE_MIN_CHUNK_SIZE);
         assert!(dynamic_size <= ABSOLUTE_MAX_CHUNK_SIZE);
 
-
         // Example with low memory cap to force lower end of clamp
         let config_low_mem_cap = create_test_config(None, 4, 1); // 1% mem cap
         let dynamic_size_low_mem = get_effective_chunk_size(&config_low_mem_cap);
-        println!("Dynamic chunk size (low mem cap): {} bytes", dynamic_size_low_mem);
-         // It should clamp to DEFAULT_MIN_CHUNK_SIZE or ABSOLUTE_MIN_CHUNK_SIZE
+        println!(
+            "Dynamic chunk size (low mem cap): {} bytes",
+            dynamic_size_low_mem
+        );
+        // It should clamp to DEFAULT_MIN_CHUNK_SIZE or ABSOLUTE_MIN_CHUNK_SIZE
         assert!(dynamic_size_low_mem <= DEFAULT_MAX_CHUNK_SIZE_BYTES);
         assert!(dynamic_size_low_mem >= ABSOLUTE_MIN_CHUNK_SIZE);
 
         // Example with many threads to force lower chunk size
         let config_many_threads = create_test_config(None, 128, 80); // 128 threads
         let dynamic_size_many_threads = get_effective_chunk_size(&config_many_threads);
-        println!("Dynamic chunk size (many threads): {} bytes", dynamic_size_many_threads);
+        println!(
+            "Dynamic chunk size (many threads): {} bytes",
+            dynamic_size_many_threads
+        );
         assert!(dynamic_size_many_threads <= DEFAULT_MAX_CHUNK_SIZE_BYTES);
         assert!(dynamic_size_many_threads >= ABSOLUTE_MIN_CHUNK_SIZE);
     }
