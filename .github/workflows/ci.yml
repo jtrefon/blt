@@ -13,28 +13,29 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build_and_test:
-    name: Build & Test (Multi-Platform) # Changed to a static name
-    runs-on: ${{ matrix.os_runner }}
-    strategy:
-      matrix:
-        include:
-          - os_name: linux
-            os_runner: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            arch: x86_64
-            artifact_suffix: tar.gz
-          - os_name: macos
-            os_runner: ubuntu-latest # Cross-compiling from Linux
-            target: aarch64-apple-darwin
-            arch: aarch64
-            artifact_suffix: tar.gz
-            use_zig: true # Flag to install Zig for cross-compilation
-          - os_name: windows
-            os_runner: windows-latest
-            target: x86_64-pc-windows-msvc
-            arch: x86_64
-            artifact_suffix: zip
+  build_and_test_linux:
+    name: Build & Test (Linux)
+    runs-on: ubuntu-latest
+    env:
+      TARGET: x86_64-unknown-linux-gnu
+      ARTIFACT_SUFFIX: tar.gz
+      ARTIFACT_NAME: blt-linux-x86_64
+
+  build_and_test_macos:
+    name: Build & Test (macOS)
+    runs-on: macos-latest
+    env:
+      TARGET: aarch64-apple-darwin
+      ARTIFACT_SUFFIX: tar.gz
+      ARTIFACT_NAME: blt-macos-aarch64
+
+  build_and_test_windows:
+    name: Build & Test (Windows)
+    runs-on: windows-latest
+    env:
+      TARGET: x86_64-pc-windows-msvc
+      ARTIFACT_SUFFIX: zip
+      ARTIFACT_NAME: blt-windows-x86_64
 
     steps:
       - uses: actions/checkout@v4
@@ -58,27 +59,11 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget xz-utils
-
-      - name: Install Zig (for macOS cross-compilation)
-        if: matrix.os_name == 'macos'  # Only install Zig for macOS cross-compilation
-        run: |
-          # Install Zig 0.11.0 directly
-          ZIG_VERSION="0.11.0"
-          ZIG_URL="https://ziglang.org/download/$ZIG_VERSION/zig-linux-x86_64-$ZIG_VERSION.tar.xz"
-          echo "Downloading Zig from: $ZIG_URL"
-          curl -L $ZIG_URL -o zig.tar.xz
-          tar -xf zig.tar.xz
-          echo "$(pwd)/zig-linux-x86_64-$ZIG_VERSION" >> $GITHUB_PATH
-          echo "ZIG_BIN=$(pwd)/zig-linux-x86_64-$ZIG_VERSION/zig" >> $GITHUB_ENV
+          sudo apt-get install -y pkg-config libssl-dev
 
       - name: Build
-        env:
-          CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER: ${{ matrix.os_name == 'macos' && '$ZIG_BIN cc -target aarch64-macos-gnu' || '' }}
-          CC_aarch64_apple_darwin: ${{ matrix.os_name == 'macos' && '$ZIG_BIN cc -target aarch64-macos-gnu' || '' }}
-          CXX_aarch64_apple_darwin: ${{ matrix.os_name == 'macos' && '$ZIG_BIN c++ -target aarch64-macos-gnu' || '' }}
         run: |
-          cargo build --release --target ${{ matrix.target }}
+          cargo build --release --target ${{ env.TARGET }}
 
 
       - name: Cache Cargo dependencies
@@ -99,15 +84,10 @@ jobs:
         run: cargo clippy --target ${{ matrix.target }} --all-features -- -D warnings
 
       - name: Run tests
-        # For cross-compilation, running tests might not be straightforward if the target architecture
-        # is different from the runner, unless using an emulator.
-        # We'll run tests only for native builds or if an emulator is set up.
-        # For now, let's assume tests are primarily for the native linux build or if cargo test supports --target for all.
-        # This might need refinement. For simplicity, we run it for all, but it might fail for cross-targets.
-        run: cargo test --target ${{ matrix.target }} --all-features
+        run: cargo test --target ${{ env.TARGET }} --all-features
 
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ env.TARGET }}
 
       - name: Package release
         if: success() && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
@@ -117,22 +97,22 @@ jobs:
           mkdir -p artifacts
           
           # Copy the built binary to a consistent name for packaging
-          if [ "${{ matrix.os_name }}" = "windows" ]; then
-            cp target/${{ matrix.target }}/release/blt.exe artifacts/blt-executable.exe
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp target/${{ env.TARGET }}/release/blt.exe artifacts/blt-executable.exe
             # Package for Windows
             cd artifacts
-            7z a blt-${{ matrix.os_name }}-${{ matrix.arch }}.zip blt-executable.exe
+            7z a ${{ env.ARTIFACT_NAME }}.zip blt-executable.exe
             cd ..
           else
-            cp target/${{ matrix.target }}/release/blt artifacts/blt-executable
+            cp target/${{ env.TARGET }}/release/blt artifacts/blt-executable
             # Package for Linux/macOS
             cd artifacts
-            tar -czvf blt-${{ matrix.os_name }}-${{ matrix.arch }}.tar.gz blt-executable
+            tar -czvf ${{ env.ARTIFACT_NAME }}.tar.gz blt-executable
             cd ..
           fi
           
           # Set output for artifact name
-          echo "artifact_name=blt-${{ matrix.os_name }}-${{ matrix.arch }}.${{ matrix.artifact_suffix }}" >> $GITHUB_OUTPUT
+          echo "artifact_name=${{ env.ARTIFACT_NAME }}.${{ env.ARTIFACT_SUFFIX }}" >> $GITHUB_OUTPUT
 
       - name: Upload build artifact
         if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
@@ -145,7 +125,7 @@ jobs:
   create_release:
     name: Create GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build_and_test # Depends on the build and test job
+    needs: [build_and_test_linux, build_and_test_macos, build_and_test_windows] # Depends on all build jobs
     runs-on: ubuntu-latest
     permissions:
       contents: write # Required to create a release
