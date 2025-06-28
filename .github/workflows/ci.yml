@@ -260,14 +260,14 @@ jobs:
           asset_name: blt-${{ github.ref_name }}-linux-x86_64.tar.gz
           asset_content_type: application/gzip
 
-      - name: Upload Release Asset (macOS aarch64)
+      - name: Upload Release Asset (macOS x86_64)
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/blt-macos-aarch64/blt-macos-aarch64.tar.gz
-          asset_name: blt-${{ github.ref_name }}-macos-aarch64.tar.gz
+          asset_path: artifacts/blt-macos-x86_64/blt-macos-x86_64.tar.gz
+          asset_name: blt-${{ github.ref_name }}-macos-x86_64.tar.gz
           asset_content_type: application/gzip
 
       - name: Upload Release Asset (Windows x86_64)
