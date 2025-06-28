@@ -1,3 +1,13 @@
+//! # Byte-Level Tokenizer Core Library (blt_core)
+//!
+//! This crate provides the core functionality for the Byte-Level Tokenizer (BLT).
+//! It handles asynchronous I/O, chunking of input data, applying tokenization
+//! strategies (initially Byte-Pair Encoding - BPE), and managing concurrent
+//! processing to maximize throughput.
+//!
+//! The main entry point for using this library is the `run_tokenizer` function,
+//! which takes a `CoreConfig` to define its behavior.
+
 use std::collections::HashMap;
 use std::io;
 use std::path::PathBuf;
@@ -9,19 +19,21 @@ use tokio::sync::mpsc; // For passing results from tasks // Added AsyncReadExt
 pub use crate::utils::parse_chunk_size_str; // Re-export for main.rs if it still needs it (it does for CLI parsing)
 pub type BpeMerges = HashMap<(u16, u16), u16>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)] // Added PartialEq for tests
 pub enum ContentType {
     Text,
     Audio,
     Bin,
+    Video, // Added Video
 }
 
 impl ContentType {
     pub fn get_token_value(&self) -> u16 {
         match self {
-            ContentType::Text => 0xFF01,
-            ContentType::Audio => 0xFF02,
-            ContentType::Bin => 0xFF03,
+            ContentType::Text => 0xFF01,  // Existing
+            ContentType::Audio => 0xFF02, // Existing
+            ContentType::Bin => 0xFF03,   // Existing
+            ContentType::Video => 0xFF04, // New token for Video
         }
     }
 }
@@ -300,7 +312,35 @@ async fn finalize_results(
     Ok(())
 }
 
-// Main entry point for the core tokenizer logic
+/// Runs the byte-level tokenizer based on the provided configuration.
+///
+/// This is the main entry point for the `blt_core` library. It orchestrates the
+/// entire tokenization process:
+/// 1. Sets up input and output (file or stdin/stdout).
+/// 2. Calculates an effective chunk size based on configuration and system resources.
+/// 3. If a content type is specified, prepends its corresponding token to the output.
+/// 4. Reads the input in chunks, processing each chunk concurrently using Tokio tasks.
+/// 5. Applies tokenization strategies (currently BPE if merges are provided).
+/// 6. Ensures processed chunks are written to the output in the correct order.
+/// 7. Flushes the output writer to ensure all data is written.
+///
+/// # Arguments
+///
+/// * `config`: A `CoreConfig` struct containing all necessary parameters for
+///   the tokenization process, such as input/output paths, BPE merge data,
+///   number of threads, etc.
+///
+/// # Returns
+///
+/// * `io::Result<()>`: Returns `Ok(())` on successful completion, or an `io::Error`
+///   if any part of the process fails (e.g., file I/O errors, task processing errors).
+///
+/// # Errors
+///
+/// This function can return errors related to:
+/// - File system operations (opening/creating files, reading/writing).
+/// - Invalid configuration (though many checks are done at the CLI layer).
+/// - Failures during chunk processing within worker tasks.
 pub async fn run_tokenizer(config: CoreConfig) -> io::Result<()> {
     let effective_chunk_size = chunking::get_effective_chunk_size(&config);
     // println!("Effective chunk size to be used: {} bytes", effective_chunk_size);
@@ -329,6 +369,7 @@ mod tests {
         assert_eq!(ContentType::Text.get_token_value(), 0xFF01);
         assert_eq!(ContentType::Audio.get_token_value(), 0xFF02);
         assert_eq!(ContentType::Bin.get_token_value(), 0xFF03);
+        assert_eq!(ContentType::Video.get_token_value(), 0xFF04); // Test for Video
     }
 
     // Add more tests for lib.rs specific logic if any parts can be unit tested in isolation.
