@@ -199,7 +199,7 @@ mod tests {
         Ok(())
     }
 
-     #[tokio::test]
+    #[tokio::test]
     async fn test_process_chunk_bpe_merge_produces_byte_value() -> io::Result<()> {
         // Test a merge that results in a token ID that is itself a valid byte value (e.g. < 256)
         // 'x' (120) 'y' (121) -> 'Z' (90)

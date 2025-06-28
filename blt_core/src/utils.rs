@@ -14,7 +14,8 @@ pub fn parse_chunk_size_str(s: &str) -> Result<usize, String> {
     // Determine if there's a unit (KB or MB)
     let (num_part_str, unit_str) = if s_upper.ends_with("KB") || s_upper.ends_with("MB") {
         s_trimmed.split_at(s_trimmed.len() - 2)
-    } else if s_upper.chars().all(|c| c.is_ascii_digit()) { // Changed to is_ascii_digit
+    } else if s_upper.chars().all(|c| c.is_ascii_digit()) {
+        // Changed to is_ascii_digit
         (s_trimmed, "") // No unit, all digits
     } else {
         // This case handles inputs like "1024X" or "abc" or "MB" alone after initial checks

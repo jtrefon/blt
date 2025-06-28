@@ -49,9 +49,9 @@ pub fn load_bpe_merges_from_path(path: &Path) -> io::Result<BpeMerges> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
     use std::io::Write;
     use tempfile::NamedTempFile;
-    use std::collections::HashMap;
 
     fn create_merges_map(pairs: Vec<((u16, u16), u16)>) -> BpeMerges {
         pairs.into_iter().collect()
@@ -67,11 +67,8 @@ mod tests {
         file.flush()?;
 
         let merges = load_bpe_merges_from_path(file.path())?;
-        let expected = create_merges_map(vec![
-            ((97, 98), 256),
-            ((99, 100), 257),
-            ((101, 102), 258),
-        ]);
+        let expected =
+            create_merges_map(vec![((97, 98), 256), ((99, 100), 257), ((101, 102), 258)]);
         assert_eq!(merges, expected);
         Ok(())
     }
@@ -79,7 +76,7 @@ mod tests {
     #[test]
     fn test_load_bpe_merges_empty_file() -> io::Result<()> {
         let mut file = NamedTempFile::new()?; // Made file mutable
-        // Intentionally left empty
+                                              // Intentionally left empty
         file.flush()?;
 
         let merges = load_bpe_merges_from_path(file.path())?;
@@ -165,7 +162,7 @@ mod tests {
             assert_eq!(e.kind(), io::ErrorKind::NotFound);
         }
     }
-     #[test]
+    #[test]
     fn test_vocab_size_increment() -> io::Result<()> {
         let mut file = NamedTempFile::new()?;
         writeln!(file, "1 2")?; // -> 256
@@ -192,14 +189,13 @@ mod tests {
         expected_merges.insert((3u16, 4u16), 257u16);
         expected_merges.insert((5u16, 6u16), 259u16);
 
-
         assert_eq!(merges.len(), 3); // 3 unique pairs
         assert_eq!(merges, expected_merges);
 
         // Check that the values are what we expect from the incrementing vocab_size
-        assert_eq!(merges.get(&(3,4)), Some(&257u16));
-        assert_eq!(merges.get(&(1,2)), Some(&258u16)); // Last seen (1,2) gets vocab_id 258
-        assert_eq!(merges.get(&(5,6)), Some(&259u16));
+        assert_eq!(merges.get(&(3, 4)), Some(&257u16));
+        assert_eq!(merges.get(&(1, 2)), Some(&258u16)); // Last seen (1,2) gets vocab_id 258
+        assert_eq!(merges.get(&(5, 6)), Some(&259u16));
 
         Ok(())
     }
