@@ -1,3 +1,13 @@
+//! # Byte-Level Tokenizer Core Library (blt_core)
+//!
+//! This crate provides the core functionality for the Byte-Level Tokenizer (BLT).
+//! It handles asynchronous I/O, chunking of input data, applying tokenization
+//! strategies (initially Byte-Pair Encoding - BPE), and managing concurrent
+//! processing to maximize throughput.
+//!
+//! The main entry point for using this library is the `run_tokenizer` function,
+//! which takes a `CoreConfig` to define its behavior.
+
 use std::collections::HashMap;
 use std::io;
 use std::path::PathBuf;
@@ -300,7 +310,35 @@ async fn finalize_results(
     Ok(())
 }
 
-// Main entry point for the core tokenizer logic
+/// Runs the byte-level tokenizer based on the provided configuration.
+///
+/// This is the main entry point for the `blt_core` library. It orchestrates the
+/// entire tokenization process:
+/// 1. Sets up input and output (file or stdin/stdout).
+/// 2. Calculates an effective chunk size based on configuration and system resources.
+/// 3. If a content type is specified, prepends its corresponding token to the output.
+/// 4. Reads the input in chunks, processing each chunk concurrently using Tokio tasks.
+/// 5. Applies tokenization strategies (currently BPE if merges are provided).
+/// 6. Ensures processed chunks are written to the output in the correct order.
+/// 7. Flushes the output writer to ensure all data is written.
+///
+/// # Arguments
+///
+/// * `config`: A `CoreConfig` struct containing all necessary parameters for
+///   the tokenization process, such as input/output paths, BPE merge data,
+///   number of threads, etc.
+///
+/// # Returns
+///
+/// * `io::Result<()>`: Returns `Ok(())` on successful completion, or an `io::Error`
+///   if any part of the process fails (e.g., file I/O errors, task processing errors).
+///
+/// # Errors
+///
+/// This function can return errors related to:
+/// - File system operations (opening/creating files, reading/writing).
+/// - Invalid configuration (though many checks are done at the CLI layer).
+/// - Failures during chunk processing within worker tasks.
 pub async fn run_tokenizer(config: CoreConfig) -> io::Result<()> {
     let effective_chunk_size = chunking::get_effective_chunk_size(&config);
     // println!("Effective chunk size to be used: {} bytes", effective_chunk_size);
