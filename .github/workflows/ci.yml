@@ -60,8 +60,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y wget xz-utils
 
-      - name: Install Zig (for cross-compilation)
-        if: matrix.use_zig == true
+      - name: Install Zig (for macOS cross-compilation)
+        if: matrix.os_name == 'macos'  # Only install Zig for macOS cross-compilation
         uses: euantorano/setup-zig@v1.2.2
         with:
           version: '0.11.0'
@@ -69,15 +69,11 @@ jobs:
 
       - name: Build
         env:
-          CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER: zig cc -target aarch64-macos-gnu
-          CC_aarch64_apple_darwin: zig cc -target aarch64-macos-gnu
-          CXX_aarch64_apple_darwin: zig c++ -target aarch64-macos-gnu
+          CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER: ${{ matrix.os_name == 'macos' && 'zig cc -target aarch64-macos-gnu' || '' }}
+          CC_aarch64_apple_darwin: ${{ matrix.os_name == 'macos' && 'zig cc -target aarch64-macos-gnu' || '' }}
+          CXX_aarch64_apple_darwin: ${{ matrix.os_name == 'macos' && 'zig c++ -target aarch64-macos-gnu' || '' }}
         run: |
-          if [ "${{ matrix.use_zig }}" = "true" ]; then
-            cargo build --release --target ${{ matrix.target }}
-          else
-            cargo build --release --target ${{ matrix.target }}
-          fi
+          cargo build --release --target ${{ matrix.target }}
 
 
       - name: Cache Cargo dependencies
