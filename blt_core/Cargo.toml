@@ -1,0 +1,15 @@
+[package]
+name = "blt_core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Add dependencies that will be used by the core library
+tokio = { version = "1", features = ["fs", "io-util", "sync", "macros", "rt", "io-std"] }
+num_cpus = "1.16"
+sysinfo = "0.30" # For system RAM detection
+
+[dev-dependencies]
+tempfile = "3.3" # For tests
+tokio = { version = "1", features = ["test-util"] } # For tokio::test
+# Add other dev-dependencies as needed
