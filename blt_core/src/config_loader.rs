@@ -29,9 +29,7 @@ pub fn load_bpe_merges_from_path(path: &Path) -> io::Result<BpeMerges> {
             let byte2 = parts[1].parse::<u8>().map_err(|e| {
                 io::Error::new(
                     io::ErrorKind::InvalidData,
-                    format!(
-                        "Failed to parse second byte value: {e} in line '{line}'",
-                    ),
+                    format!("Failed to parse second byte value: {e} in line '{line}'",),
                 )
             })?;
             merges.insert((byte1 as u16, byte2 as u16), vocab_size);
