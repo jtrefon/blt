@@ -14,7 +14,7 @@ env:
 
 jobs:
   build_and_test:
-    name: Build & Test (${{ matrix.os_name }}/${{ matrix.arch }})
+    name: Build & Test (Multi-Platform) # Changed to a static name
     runs-on: ${{ matrix.os_runner }}
     strategy:
       matrix:
