@@ -62,24 +62,16 @@ jobs:
 
       - name: Install Zig (for cross-compilation)
         if: matrix.use_zig == true
-        run: |
-          # Install Zig 0.11.0 (known stable version)
-          ZIG_VERSION="0.11.0"
-          ZIG_URL="https://ziglang.org/download/$ZIG_VERSION/zig-linux-x86_64-$ZIG_VERSION.tar.xz"
-          echo "Downloading Zig from: $ZIG_URL"
-          wget -q $ZIG_URL
-          tar -xf zig-linux-x86_64-$ZIG_VERSION.tar.xz
-          ZIG_DIR="$(pwd)/zig-linux-x86_64-$ZIG_VERSION"
-          echo "Zig installed to: $ZIG_DIR"
-          echo "$ZIG_DIR" >> $GITHUB_PATH
-          echo "ZIG_PATH=$ZIG_DIR" >> $GITHUB_ENV
-          echo "ZIG_BIN=$ZIG_DIR/zig" >> $GITHUB_ENV
+        uses: euantorano/setup-zig@v1.2.2
+        with:
+          version: '0.11.0'
+        id: zig
 
       - name: Build
         env:
-          CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER: ${{ env.ZIG_BIN }} cc -target aarch64-macos-gnu
-          CC_aarch64_apple_darwin: ${{ env.ZIG_BIN }} cc -target aarch64-macos-gnu
-          CXX_aarch64_apple_darwin: ${{ env.ZIG_BIN }} c++ -target aarch64-macos-gnu
+          CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER: zig cc -target aarch64-macos-gnu
+          CC_aarch64_apple_darwin: zig cc -target aarch64-macos-gnu
+          CXX_aarch64_apple_darwin: zig c++ -target aarch64-macos-gnu
         run: |
           if [ "${{ matrix.use_zig }}" = "true" ]; then
             cargo build --release --target ${{ matrix.target }}
