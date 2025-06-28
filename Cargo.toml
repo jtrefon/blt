@@ -1,12 +1,27 @@
+[workspace]
+members = [
+    "blt_core",
+    # The main binary crate (this one) is implicitly a member
+    # if it's the root package with a [workspace] section.
+    # Or we can explicitly list it if we move it to its own subdir, e.g. "blt_cli"
+]
+resolver = "2" # Using version 2 resolver
+
 [package]
-name = "blt"
+name = "blt" # This is the binary crate
 version = "0.1.0"
-edition = "2021"
+edition = "2021" # Match blt_core for consistency
 
 [dependencies]
+blt_core = { path = "blt_core" }
+# Dependencies specific to the binary, if any, will go here.
+# Most application logic dependencies should be in blt_core.
+# clap will likely be here for CLI parsing for the binary.
 clap = { version = "4.4.8", features = ["derive"] }
-tokio = { version = "1", features = ["full"] }
-num_cpus = "1.16"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] } # main needs tokio for #[tokio::main]
+num_cpus = "1.16" # Used by main.rs to determine default thread count
 
 [dev-dependencies]
-tempfile = "3.3"
+# Dev dependencies for integration tests of the binary, if any.
+tempfile = "3.3" # If integration tests for the binary need it directly
+# Note: unit tests for blt_core go in blt_core/Cargo.toml dev-dependencies
