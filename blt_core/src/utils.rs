@@ -20,24 +20,23 @@ pub fn parse_chunk_size_str(s: &str) -> Result<usize, String> {
     } else {
         // This case handles inputs like "1024X" or "abc" or "MB" alone after initial checks
         return Err(format!(
-            "Invalid unit or format: '{}'. Number must be followed by KB, MB, or be raw bytes.",
-            s_trimmed
+            "Invalid unit or format: '{s_trimmed}'. Number must be followed by KB, MB, or be raw bytes.",
         ));
     };
 
     if num_part_str.is_empty() && !unit_str.is_empty() {
-        return Err(format!("Number part missing for unit '{}'", unit_str));
+        return Err(format!("Number part missing for unit '{unit_str}'"));
     }
 
     let num = num_part_str
         .parse::<usize>()
-        .map_err(|_| format!("Invalid number: '{}'", num_part_str))?;
+        .map_err(|_| format!("Invalid number: '{num_part_str}'"))?;
 
     match unit_str.to_uppercase().as_str() {
         "KB" => Ok(num * 1024),
         "MB" => Ok(num * 1024 * 1024),
         "" => Ok(num), // Raw bytes
-        _ => Err(format!("Unsupported unit: '{}'. Use KB or MB.", unit_str)), // Should be caught by earlier checks
+        _ => Err(format!("Unsupported unit: '{unit_str}'. Use KB or MB.")), // Should be caught by earlier checks
     }
 }
 

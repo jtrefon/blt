@@ -23,22 +23,21 @@ pub fn load_bpe_merges_from_path(path: &Path) -> io::Result<BpeMerges> {
             let byte1 = parts[0].parse::<u8>().map_err(|e| {
                 io::Error::new(
                     io::ErrorKind::InvalidData,
-                    format!("Failed to parse first byte value: {} in line '{}'", e, line),
+                    format!("Failed to parse first byte value: {e} in line '{line}'"),
                 )
             })?;
             let byte2 = parts[1].parse::<u8>().map_err(|e| {
                 io::Error::new(
                     io::ErrorKind::InvalidData,
                     format!(
-                        "Failed to parse second byte value: {} in line '{}'",
-                        e, line
+                        "Failed to parse second byte value: {e} in line '{line}'",
                     ),
                 )
             })?;
             merges.insert((byte1 as u16, byte2 as u16), vocab_size);
             vocab_size += 1;
         } else {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid merge rule format in line: '{}'. Expected two numbers separated by space.", line)));
+            return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid merge rule format in line: '{line}'. Expected two numbers separated by space.")));
         }
     }
     Ok(merges)
