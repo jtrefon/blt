@@ -84,7 +84,7 @@ async fn main() -> io::Result<()> {
             let merges = config_loader::load_bpe_merges_from_path(path).map_err(|e| {
                 io::Error::new(
                     io::ErrorKind::InvalidInput,
-                    format!("Failed to load BPE merges: {}", e),
+                    format!("Failed to load BPE merges: {e}"),
                 )
             })?;
             Some(Arc::new(merges))
@@ -106,7 +106,7 @@ async fn main() -> io::Result<()> {
 
     // Run the core tokenizer logic
     if let Err(e) = blt_core::run_tokenizer(core_config).await {
-        eprintln!("Error running tokenizer: {}", e);
+        eprintln!("Error running tokenizer: {e}");
         std::process::exit(1);
     }
 
