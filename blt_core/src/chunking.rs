@@ -1,3 +1,12 @@
+//! # Chunking Logic for BLT
+//!
+//! This module determines the appropriate size for data chunks that are processed
+//! in parallel by the tokenizer. The goal is to balance memory usage, CPU utilization,
+//! and I/O throughput.
+//!
+//! Chunk size can be specified by the user via CLI arguments or calculated
+//! dynamically based on available system RAM and the number of processing threads.
+
 use crate::CoreConfig;
 use sysinfo::System; // Removed SystemExt from direct import
 

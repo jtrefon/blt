@@ -50,6 +50,7 @@ enum CliContentType {
     Text,
     Audio,
     Bin,
+    Video, // Added Video
 }
 
 // Conversion from CLI's ContentType to Core's ContentType
@@ -59,6 +60,7 @@ impl From<CliContentType> for CoreContentType {
             CliContentType::Text => CoreContentType::Text,
             CliContentType::Audio => CoreContentType::Audio,
             CliContentType::Bin => CoreContentType::Bin,
+            CliContentType::Video => CoreContentType::Video, // Added Video
         }
     }
 }
