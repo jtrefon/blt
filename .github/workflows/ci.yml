@@ -43,6 +43,9 @@ jobs:
       - name: Build and test Python bindings
         working-directory: blt_python
         run: |
+          python -m venv test_env
+          source test_env/bin/activate
+          pip install maturin pytest
           maturin develop
           python -m pytest tests/ -v
 
