@@ -38,8 +38,20 @@ cd blt
 # Build in release mode for optimal performance
 cargo build --release
 
-# The binary will be available at:
-# ./target/release/blt
+  # The binary will be available at:
+  # ./target/release/blt
+  ```
+
+### Python Package
+
+```bash
+# Install from PyPI
+pip install blt-tokenizer
+
+# Or build from source
+cd blt_python
+pip install maturin
+maturin develop
 ```
 
 ### Development Build
@@ -126,8 +138,31 @@ echo "Hello, world!" | ./target/release/blt --input - --output -
 # Use 8 threads with 2MB chunks
 ./target/release/blt -i large_file.bin -o output.bin --threads 8 --chunksize 2MB
 
-# Limit memory usage to 50%
-./target/release/blt -i huge_file.bin -o output.bin --memcap 50
+  # Limit memory usage to 50%
+  ./target/release/blt -i huge_file.bin -o output.bin --memcap 50
+  ```
+
+### Python API
+
+```python
+import blt
+
+# Basic usage
+tokenizer = blt.ByteTokenizer()
+tokenizer.tokenize_file("input.txt", "output.bin")
+
+# With BPE merges
+merges = {(97, 98): 256}  # 'a' + 'b' -> token 256
+tokenizer = blt.ByteTokenizer(merges=merges)
+tokenizer.tokenize_file("input.txt", "output.bin")
+
+# Advanced configuration
+tokenizer = blt.ByteTokenizer(
+    content_type="Text",
+    threads=4,
+    chunk_size="1MB",
+    memory_cap=50
+)
 ```
 
 ---
@@ -316,16 +351,47 @@ cargo fmt
 git commit -m "Add your feature"
 git push origin feature/your-feature-name
 
-# 5. Create a pull request
+  # 5. Create a pull request
+  ```
+
+---
+
+## 🐍 Python Bindings
+
+**NEW in v0.2**: High-performance Python bindings are now available!
+
+```python
+import blt
+
+# Create tokenizer
+tokenizer = blt.ByteTokenizer()
+
+# Process files
+tokenizer.tokenize_file("input.txt", "output.bin")
+
+# With BPE merges
+merges = {(97, 98): 256}  # 'a' + 'b' -> token 256
+tokenizer = blt.ByteTokenizer(merges=merges)
+```
+
+**Installation:**
+```bash
+# From PyPI
+pip install blt-tokenizer
+
+# From source (requires Rust toolchain)
+cd blt_python
+pip install maturin
+maturin develop
 ```
 
 ---
 
 ## 💡 Roadmap
 
-- **v0.1** ✅ Core CLI, async chunked tokenization, BPE support
-- **v0.2** ✅ Memory-mapped I/O, performance optimization, comprehensive testing
-- **v0.3** 🚧 Python bindings, REST microservice
+  - **v0.1** ✅ Core CLI, async chunked tokenization, BPE support
+  - **v0.2** 🚧 **Python bindings**, memory-mapped I/O, performance optimization
+  - **v0.3** 📋 REST microservice, advanced features
 - **v1.0** 📋 Stable release with plugin ecosystem
 
 ---

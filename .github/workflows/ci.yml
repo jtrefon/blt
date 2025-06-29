@@ -76,10 +76,69 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.asset_name }}
 
+  build_python:
+    name: Build Python Wheels
+    needs: test_and_lint
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Install maturin
+        run: pip install maturin[patchelf]
+      - name: Build Python wheel
+        working-directory: blt_python
+        run: maturin build --release --target ${{ matrix.target }} --out dist
+      - name: Upload Python wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-wheels-${{ matrix.os }}-${{ matrix.target }}
+          path: blt_python/dist/*.whl
+
+  publish_python:
+    name: Publish to PyPI
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test_and_lint, build_python]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write  # For trusted publishing to PyPI
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: python-wheels-*
+          path: wheels
+          merge-multiple: true
+      - name: Display structure of downloaded files
+        run: ls -R wheels
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: wheels/
+          skip-existing: true
+          verbose: true
+
   create_github_release:
     name: Create GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, build_python]
     runs-on: ubuntu-latest
     permissions:
       contents: write

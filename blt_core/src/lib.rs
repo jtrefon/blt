@@ -192,6 +192,34 @@ impl CoreConfig {
     }
 }
 
+/// Loads BPE merges from a file path.
+///
+/// This function loads BPE merge rules from a file and returns them as a HashMap.
+/// The file should contain pairs of bytes that can be merged, one pair per line.
+///
+/// # Arguments
+///
+/// * `path`: Path to the BPE merges file.
+///
+/// # Returns
+///
+/// A HashMap mapping byte pairs to new token IDs.
+pub fn load_bpe_merges(path: &Path) -> io::Result<HashMap<(u8, u8), u16>> {
+    let merges = config_loader::load_bpe_merges_from_path(path)?;
+    // Convert from (u16, u16) to (u8, u8) for Python compatibility
+    let converted: HashMap<(u8, u8), u16> = merges
+        .into_iter()
+        .filter_map(|((a, b), token)| {
+            if a <= 255 && b <= 255 {
+                Some(((a as u8, b as u8), token))
+            } else {
+                None
+            }
+        })
+        .collect();
+    Ok(converted)
+}
+
 /// Runs the entire tokenization pipeline with the given configuration.
 ///
 /// This is the main entry point of the `blt_core` library. It sets up the I/O,
