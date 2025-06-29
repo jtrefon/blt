@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **31 comprehensive tests**: Unit, integration, and documentation tests
 - **Performance benchmarks**: Automated performance monitoring
 - **Code quality tools**: Clippy, rustfmt, and cargo audit integration
-- **Cross-platform CI**: Linux, macOS, and Windows support
+- **Cross-platform CI**: Linux, macOS (Intel & Apple Silicon), and Windows support
 
 ### 📚 Documentation
 - **Complete README**: Build, test, benchmark, and usage instructions

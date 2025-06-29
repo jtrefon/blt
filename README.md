@@ -62,6 +62,17 @@ docker build -t blt-tokenizer .
 echo "Hello, world!" | docker run -i --rm blt-tokenizer --input - --output -
 ```
 
+### Pre-built Binaries
+
+Release binaries are automatically built for multiple platforms via CI/CD:
+
+- **Linux (x86_64)**: `blt-linux-amd64.tar.gz`
+- **macOS Intel (x86_64)**: `blt-macos-amd64.tar.gz`
+- **macOS Apple Silicon (ARM64)**: `blt-macos-arm64.tar.gz`
+- **Windows (x86_64)**: `blt-windows-amd64.zip`
+
+Download the latest release from [GitHub Releases](https://github.com/jtrefon/blt/releases).
+
 ---
 
 ## 🔧 Usage
