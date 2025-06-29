@@ -19,35 +19,82 @@ fn create_test_file(size_mb: usize) -> (tempfile::TempDir, std::path::PathBuf) {
 fn benchmark_pipeline(c: &mut Criterion) {
     let mut group = c.benchmark_group("Pipeline Benchmarks");
 
-    // Create a large temporary file for input
-    let (_in_dir, in_path) = create_test_file(100); // 100MB test file
-
-    // Create a temporary directory for output files
-    let out_dir = tempdir().unwrap();
-
-    // Create a Tokio runtime for our async benchmarks
-    let runtime = Runtime::new().unwrap();
-
-    group.sample_size(10); // Run fewer samples because it's a long test
+    // 100MB benchmark (existing)
+    let (_in_dir_100, in_path_100) = create_test_file(100); // 100MB test file
+    let out_dir_100 = tempdir().unwrap();
+    let runtime_100 = Runtime::new().unwrap();
+    group.sample_size(10);
     group.bench_function("passthrough_100mb_file", |b| {
-        // Use the runtime to run the async benchmark
-        b.to_async(&runtime).iter(|| {
-            // For each iteration, we need a unique output path
-            let out_path = out_dir
+        b.to_async(&runtime_100).iter(|| {
+            let out_path = out_dir_100
                 .path()
                 .join(format!("output_{}.dat", rand::random::<u64>()));
-
             let config = CoreConfig::new_from_cli(
-                Some(black_box(in_path.clone())),
+                Some(black_box(in_path_100.clone())),
                 Some(black_box(out_path)),
-                None, // No BPE merges -> PassthroughStrategy
+                None,
                 None,
                 None,
                 None,
                 None,
             )
             .unwrap();
+            async {
+                let result = run_tokenizer(config).await;
+                result.unwrap();
+                black_box(());
+            }
+        })
+    });
 
+    // 10MB benchmark
+    let (_in_dir_10, in_path_10) = create_test_file(10); // 10MB test file
+    let out_dir_10 = tempdir().unwrap();
+    let runtime_10 = Runtime::new().unwrap();
+    group.sample_size(10);
+    group.bench_function("passthrough_10mb_file", |b| {
+        b.to_async(&runtime_10).iter(|| {
+            let out_path = out_dir_10
+                .path()
+                .join(format!("output_{}.dat", rand::random::<u64>()));
+            let config = CoreConfig::new_from_cli(
+                Some(black_box(in_path_10.clone())),
+                Some(black_box(out_path)),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+            async {
+                let result = run_tokenizer(config).await;
+                result.unwrap();
+                black_box(());
+            }
+        })
+    });
+
+    // 1GB benchmark
+    let (_in_dir_1g, in_path_1g) = create_test_file(1024); // 1GB test file
+    let out_dir_1g = tempdir().unwrap();
+    let runtime_1g = Runtime::new().unwrap();
+    group.sample_size(10); // Criterion requires at least 10 samples
+    group.bench_function("passthrough_1gb_file", |b| {
+        b.to_async(&runtime_1g).iter(|| {
+            let out_path = out_dir_1g
+                .path()
+                .join(format!("output_{}.dat", rand::random::<u64>()));
+            let config = CoreConfig::new_from_cli(
+                Some(black_box(in_path_1g.clone())),
+                Some(black_box(out_path)),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
             async {
                 let result = run_tokenizer(config).await;
                 result.unwrap();
