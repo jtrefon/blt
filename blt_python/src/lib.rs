@@ -109,7 +109,7 @@ impl ByteTokenizer {
                     let mut file = std::fs::File::create(temp_file.path())?;
 
                     for (a, b) in merges.keys() {
-                        writeln!(file, "{} {}", a, b)?;
+                        writeln!(file, "{a} {b}")?;
                     }
                 }
 
