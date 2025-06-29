@@ -25,11 +25,30 @@ jobs:
       - name: Run linter checks
         run: cargo clippy --all -- -D warnings
       - name: Run tests
-        run: cargo test --all
+        run: cargo test --workspace --exclude blt_python
+
+  test_python:
+    name: Test Python Bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Install maturin and pytest
+        run: pip install maturin pytest
+      - name: Build and test Python bindings
+        working-directory: blt_python
+        run: |
+          maturin develop
+          python -m pytest tests/ -v
 
   build:
     name: Build Release Binaries
-    needs: test_and_lint
+    needs: [test_and_lint, test_python]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -78,7 +97,7 @@ jobs:
 
   build_python:
     name: Build Python Wheels
-    needs: test_and_lint
+    needs: [test_and_lint, test_python]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -115,7 +134,7 @@ jobs:
   publish_python:
     name: Publish to PyPI
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test_and_lint, build_python]
+    needs: [test_and_lint, test_python, build_python]
     runs-on: ubuntu-latest
     environment: release
     permissions:
