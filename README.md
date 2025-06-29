@@ -325,6 +325,7 @@ RUST_LOG=trace ./target/release/blt -i input.txt -o output.bin
 * **API Reference**: Run `cargo doc --open` for detailed API documentation
 * **Contributing**: [CONTRIBUTING.md](./CONTRIBUTING.md)
 * **Coding Standards**: [CODING_STANDARDS.md](./CODING_STANDARDS.md)
+* **Deployment Guide**: [DEPLOYMENT.md](./DEPLOYMENT.md) - Release process and PyPI publishing
 
 ---
 
