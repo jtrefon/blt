@@ -6,6 +6,10 @@
 //!
 //! Chunk size can be specified by the user via CLI arguments or calculated
 //! dynamically based on available system RAM and the number of processing threads.
+//!
+//! This module is internal to `blt_core` and handles chunk sizing logic.
+//!
+//! It is not intended for direct use by external crates.
 
 use crate::CoreConfig;
 use sysinfo::System; // Removed SystemExt from direct import
@@ -19,7 +23,7 @@ const ABSOLUTE_MAX_CHUNK_SIZE: usize = 128 * 1024 * 1024; // 128MB, absolute cei
 /// Determines the effective chunk size to use for processing.
 /// If `config.cli_chunk_size` is Some, it's used directly (respecting absolute min/max).
 /// Otherwise, dynamically calculates based on system RAM and number of threads.
-pub fn get_effective_chunk_size(config: &CoreConfig) -> usize {
+pub(crate) fn get_effective_chunk_size(config: &CoreConfig) -> usize {
     if let Some(cli_size) = config.cli_chunk_size {
         // User specified a chunk size, use that, but clamp it reasonably.
         return cli_size.clamp(ABSOLUTE_MIN_CHUNK_SIZE, ABSOLUTE_MAX_CHUNK_SIZE);

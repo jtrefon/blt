@@ -1,9 +1,13 @@
 // blt_core/src/utils.rs
 // Common utility functions.
 
+//! This module is internal to `blt_core` and provides common utility functions.
+//!
+//! It is not intended for direct use by external crates.
+
 // The parse_chunk_size function was moved here from lib.rs
 // It's a utility for parsing human-readable size strings.
-pub fn parse_chunk_size_str(s: &str) -> Result<usize, String> {
+pub(crate) fn parse_chunk_size_str(s: &str) -> Result<usize, String> {
     let s_trimmed = s.trim();
     if s_trimmed.is_empty() {
         return Err("Input string is empty".to_string());
@@ -72,7 +76,7 @@ mod tests {
 /// Otherwise, defaults to `num_cpus::get()` or 1 if `num_cpus::get()` is 0 or 1.
 /// The previous logic was (cores - 1), this changes it to use all available cores by default.
 /// If fewer cores are desired, the user should specify with --threads.
-pub fn determine_thread_count(cli_threads_override: Option<usize>) -> usize {
+pub(crate) fn determine_thread_count(cli_threads_override: Option<usize>) -> usize {
     match cli_threads_override {
         Some(threads) => {
             if threads == 0 {

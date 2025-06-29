@@ -1,70 +1,244 @@
 //! # Byte-Level Tokenizer Core Library (blt_core)
 //!
-//! This crate provides the core functionality for the Byte-Level Tokenizer (BLT).
-//! It handles asynchronous I/O, chunking of input data, applying tokenization
-//! strategies (initially Byte-Pair Encoding - BPE), and managing concurrent
-//! processing to maximize throughput.
+//! The `blt_core` crate orchestrates the entire tokenization process. It is designed for high
+//! performance and flexibility, supporting multiple tokenization strategies and efficient,
+//! concurrent I/O handling.
 //!
-//! The main entry point for using this library is the `run_tokenizer` function,
-//! which takes a `CoreConfig` to define its behavior.
+//! ## Core Concepts
+//!
+//! - **Configuration (`CoreConfig`):** A central struct that holds all operational parameters,
+//!   from input/output paths to threading and memory settings.
+//! - **Pipeline (`pipeline::run`):** The heart of the tokenizer. It processes data in chunks,
+//!   leveraging an asynchronous, multi-threaded architecture. It supports both memory-mapped files
+//!   for maximum efficiency and streaming input for flexibility.
+//! - **Tokenization Strategy (`tokenizer::TokenizationStrategy`):** A trait that allows for
+//!   pluggable tokenization algorithms. The two primary strategies are `BpeStrategy` for
+//!   Byte-Pair Encoding and `PassthroughStrategy` for no-op tokenization.
+//! - **I/O Handling (`io_handler`):** Manages input sources (files, stdin) and output sinks
+//!   (files, stdout), abstracting away the details of synchronous vs. asynchronous I/O.
+//!
+//! ## Example Usage
+//!
+//! ```no_run
+//! use blt_core::{CoreConfig, run_tokenizer};
+//! use std::path::PathBuf;
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let config = CoreConfig::new_from_cli(
+//!         Some(PathBuf::from("input.txt")),
+//!         Some(PathBuf::from("output.bin")),
+//!         None, // No BPE merges, use passthrough
+//!         None,
+//!         None,
+//!         None,
+//!         None,
+//!     ).unwrap();
+//!
+//!     if let Err(e) = run_tokenizer(config).await {
+//!         eprintln!("Error: {}", e);
+//!     }
+//! }
+//! ```
 
 use std::collections::HashMap;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::sync::mpsc; // For passing results from tasks // Added AsyncReadExt
+use tokio::io::AsyncWriteExt;
+use tracing::{info, instrument};
 
-// Re-export or define necessary types
-pub use crate::utils::parse_chunk_size_str; // Re-export for main.rs if it still needs it (it does for CLI parsing)
+use crate::tokenizer::{BpeStrategy, PassthroughStrategy, TokenizationStrategy};
+
+// --- Module declarations ---
+/// Handles dynamic chunk sizing based on system memory and CLI parameters.
+pub mod chunking;
+/// Responsible for loading BPE merge files.
+pub mod config_loader;
+/// Manages input and output sources, supporting files and standard I/O.
+pub mod io_handler;
+/// Contains the core multi-threaded pipeline logic for processing data chunks.
+pub mod pipeline;
+/// Defines tokenization strategies (BPE, Passthrough) and the `TokenizationStrategy` trait.
+pub mod tokenizer;
+/// Utilities for parsing configurations and detecting system resources.
+pub mod utils;
+
+// --- Public API ---
+
+/// A type alias for the BPE merge map.
+///
+/// The map consists of a pair of tokens (as `u16`) that can be merged into a single new token (`u16`).
 pub type BpeMerges = HashMap<(u16, u16), u16>;
 
-#[derive(Clone, Debug, PartialEq)] // Added PartialEq for tests
+/// Represents the type of content being processed.
+///
+/// This enum is used to prepend a special token to the output stream, allowing downstream
+/// consumers to identify the nature of the original content.
+#[derive(Clone, Debug, PartialEq)]
 pub enum ContentType {
+    /// Plain text content.
     Text,
+    /// Audio data.
     Audio,
+    /// Generic binary data.
     Bin,
-    Video, // Added Video
+    /// Video data.
+    Video,
 }
 
 impl ContentType {
+    /// Returns the special token value associated with each content type.
+    /// These tokens are in a reserved range (0xFF01 - 0xFF04).
     pub fn get_token_value(&self) -> u16 {
         match self {
-            ContentType::Text => 0xFF01,  // Existing
-            ContentType::Audio => 0xFF02, // Existing
-            ContentType::Bin => 0xFF03,   // Existing
-            ContentType::Video => 0xFF04, // New token for Video
+            ContentType::Text => 0xFF01,
+            ContentType::Audio => 0xFF02,
+            ContentType::Bin => 0xFF03,
+            ContentType::Video => 0xFF04,
         }
     }
 }
 
+/// Central configuration for the tokenizer pipeline.
+///
+/// This struct holds all the necessary settings to control the tokenization process,
+/// including I/O paths, tokenization strategy, and performance tuning parameters.
 #[derive(Debug, Clone)]
 pub struct CoreConfig {
+    /// Path to the input file. If `None`, stdin will be used.
     pub input: Option<PathBuf>,
+    /// Path to the output file. If `None`, stdout will be used.
     pub output: Option<PathBuf>,
-    pub merges_file: Option<PathBuf>, // For reference; actual merges in bpe_data
+    /// Path to the BPE merges file. If `None`, the passthrough strategy is used.
+    pub merges_file: Option<PathBuf>,
+    /// The type of content being processed.
     pub content_type: Option<ContentType>,
+    /// The number of threads to use for the processing pipeline.
     pub num_threads: usize,
+    /// The chunk size specified via CLI, in bytes.
     pub cli_chunk_size: Option<usize>,
+    /// The percentage of system RAM to use as a cap for the chunk size.
     pub mem_cap_percent: u8,
+    /// Pre-loaded BPE merge data.
     pub bpe_data: Option<Arc<BpeMerges>>,
 }
 
-// --- Module declarations ---
-pub mod chunking;
-pub mod config_loader;
-pub mod io_handler;
-pub mod tokenizer;
-pub mod utils;
+impl CoreConfig {
+    /// Creates a new `CoreConfig` from command-line arguments.
+    ///
+    /// This is the primary entry point for creating a configuration. It handles parsing,
+    /// validation, and loading of necessary resources like BPE merge files.
+    ///
+    /// # Arguments
+    ///
+    /// * `input`: Optional path to the input file.
+    /// * `output`: Optional path to the output file.
+    /// * `merges`: Optional path to the BPE merges file.
+    /// * `content_type`: Optional `ContentType` of the input.
+    /// * `threads`: Optional number of threads to use.
+    /// * `chunksize`: Optional chunk size as a string (e.g., "16MB").
+    /// * `memcap`: Optional memory capacity percentage.
+    pub fn new_from_cli(
+        input: Option<PathBuf>,
+        output: Option<PathBuf>,
+        merges: Option<PathBuf>,
+        content_type: Option<ContentType>,
+        threads: Option<usize>,
+        chunksize: Option<String>,
+        memcap: Option<u8>,
+    ) -> io::Result<Self> {
+        let num_threads = utils::determine_thread_count(threads);
+        let cli_chunk_size = Self::parse_chunksize(chunksize)?;
+        let bpe_data = Self::load_bpe_data(&merges)?;
 
-// --- Helper functions for run_tokenizer ---
+        Ok(CoreConfig {
+            input,
+            output,
+            merges_file: merges,
+            content_type,
+            num_threads,
+            cli_chunk_size,
+            mem_cap_percent: memcap.unwrap_or(80),
+            bpe_data,
+        })
+    }
 
-async fn initialize_io(
-    config: &CoreConfig,
-) -> io::Result<(io_handler::InputReader, io_handler::OutputWriter)> {
-    let input_reader = io_handler::setup_input_reader(config).await?;
-    let output_writer = io_handler::setup_output_writer(config).await?;
-    Ok((input_reader, output_writer))
+    fn parse_chunksize(chunksize: Option<String>) -> io::Result<Option<usize>> {
+        chunksize
+            .as_ref()
+            .map(|cs_str| utils::parse_chunk_size_str(cs_str))
+            .transpose()
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))
+    }
+
+    fn load_bpe_data(merges_path: &Option<PathBuf>) -> io::Result<Option<Arc<BpeMerges>>> {
+        match merges_path {
+            Some(path) => {
+                let merges_map = Self::load_merges_from_file(path)?;
+                Ok(Some(Arc::new(merges_map)))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn load_merges_from_file(path: &Path) -> io::Result<BpeMerges> {
+        config_loader::load_bpe_merges_from_path(path).map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("Failed to load BPE merges: {e}"),
+            )
+        })
+    }
+}
+
+/// Runs the entire tokenization pipeline with the given configuration.
+///
+/// This is the main entry point of the `blt_core` library. It sets up the I/O,
+/// selects the tokenization strategy, and launches the processing pipeline.
+///
+/// # Arguments
+///
+/// * `config`: A `CoreConfig` struct containing all the necessary settings.
+///
+/// # Errors
+///
+/// This function can return an `io::Error` if there are issues with file I/O,
+/// configuration loading, or during the processing pipeline itself.
+#[instrument(skip_all, fields(input = ?config.input, output = ?config.output))]
+pub async fn run_tokenizer(config: CoreConfig) -> io::Result<()> {
+    info!("Starting tokenizer");
+
+    let strategy = select_strategy(&config);
+    let effective_chunk_size = chunking::get_effective_chunk_size(&config);
+    info!(effective_chunk_size, "Chunk size determined");
+
+    let (input_source, mut output_writer) = io_handler::setup_io(&config).await?;
+    prepend_content_type_token(&mut output_writer, config.content_type.as_ref()).await?;
+
+    pipeline::run(
+        input_source,
+        output_writer,
+        effective_chunk_size,
+        config.num_threads,
+        strategy,
+    )
+    .await?;
+
+    info!("Tokenizer run completed successfully");
+    Ok(())
+}
+
+// --- Private Helper Functions ---
+
+fn select_strategy(config: &CoreConfig) -> Arc<dyn TokenizationStrategy> {
+    if let Some(ref bpe_data) = config.bpe_data {
+        info!("Using BPE tokenization strategy.");
+        Arc::new(BpeStrategy::new(bpe_data.clone()))
+    } else {
+        info!("Using passthrough tokenization strategy.");
+        Arc::new(PassthroughStrategy)
+    }
 }
 
 async fn prepend_content_type_token(
@@ -77,303 +251,4 @@ async fn prepend_content_type_token(
             .await?;
     }
     Ok(())
-}
-
-// Structure to hold state for the processing loop
-struct ProcessingContext {
-    next_chunk_id: usize,
-    dispatched_task_handles: HashMap<usize, tokio::task::JoinHandle<()>>,
-    received_results: HashMap<usize, io::Result<Vec<u8>>>,
-    current_expected_chunk_id: usize,
-    input_eof: bool,
-}
-
-impl ProcessingContext {
-    fn new() -> Self {
-        ProcessingContext {
-            next_chunk_id: 0,
-            dispatched_task_handles: HashMap::new(),
-            received_results: HashMap::new(),
-            current_expected_chunk_id: 0,
-            input_eof: false,
-        }
-    }
-}
-
-async fn spawn_chunk_processing_task(
-    task_id: usize,
-    chunk_buffer: Vec<u8>,
-    bpe_data: Option<Arc<BpeMerges>>,
-    results_tx: mpsc::Sender<(usize, io::Result<Vec<u8>>)>,
-) -> tokio::task::JoinHandle<()> {
-    tokio::spawn(async move {
-        let result = tokenizer::process_chunk(chunk_buffer, bpe_data).await;
-        if results_tx.send((task_id, result)).await.is_err() {
-            // eprintln!("Error sending result for task {}: receiver dropped.", task_id);
-        }
-    })
-}
-
-/// Helper function to read a chunk from input and spawn a processing task.
-/// Returns `Ok(true)` if a task was spawned, `Ok(false)` if EOF was reached.
-async fn try_read_and_spawn_task(
-    context: &mut ProcessingContext,
-    input_reader: &mut io_handler::InputReader,
-    effective_chunk_size: usize,
-    bpe_data: Option<Arc<BpeMerges>>,
-    results_tx: mpsc::Sender<(usize, io::Result<Vec<u8>>)>,
-) -> io::Result<bool> {
-    let mut chunk_buffer = vec![0; effective_chunk_size];
-    let bytes_read = input_reader.read(&mut chunk_buffer).await?;
-
-    if bytes_read == 0 {
-        context.input_eof = true;
-        return Ok(false); // EOF reached, no task spawned
-    }
-    chunk_buffer.truncate(bytes_read);
-
-    let task_id = context.next_chunk_id;
-    context.next_chunk_id += 1;
-
-    let handle =
-        spawn_chunk_processing_task(task_id, chunk_buffer, bpe_data.clone(), results_tx.clone())
-            .await;
-    context.dispatched_task_handles.insert(task_id, handle);
-    Ok(true) // Task spawned
-}
-
-async fn manage_task_spawning_and_input_reading(
-    context: &mut ProcessingContext,
-    input_reader: &mut io_handler::InputReader,
-    effective_chunk_size: usize,
-    num_threads: usize, // Controls how many tasks can be in flight
-    bpe_data: Option<Arc<BpeMerges>>,
-    results_tx_clone: mpsc::Sender<(usize, io::Result<Vec<u8>>)>,
-) -> io::Result<()> {
-    // Fill the worker pool as long as there's capacity and no EOF
-    while !context.input_eof && context.dispatched_task_handles.len() < num_threads {
-        if !try_read_and_spawn_task(
-            context,
-            input_reader,
-            effective_chunk_size,
-            bpe_data.clone(),
-            results_tx_clone.clone(),
-        )
-        .await?
-        {
-            // false means EOF was reached by try_read_and_spawn_task
-            break;
-        }
-        // If true, a task was spawned; loop continues if capacity allows.
-    }
-    Ok(())
-}
-
-async fn process_received_results(
-    context: &mut ProcessingContext,
-    maybe_result: Option<(usize, io::Result<Vec<u8>>)>,
-    output_writer: &mut io_handler::OutputWriter,
-) -> io::Result<bool> {
-    // Returns true if loop should break
-    match maybe_result {
-        Some((task_id, result)) => {
-            context.dispatched_task_handles.remove(&task_id);
-            context.received_results.insert(task_id, result);
-        }
-        None => return Ok(true), // Channel disconnected, break loop
-    }
-    write_ordered_results(context, output_writer).await?;
-    Ok(false) // Don't break loop yet
-}
-
-async fn write_ordered_results(
-    context: &mut ProcessingContext,
-    output_writer: &mut io_handler::OutputWriter,
-) -> io::Result<()> {
-    while let Some(result_data) = context
-        .received_results
-        .remove(&context.current_expected_chunk_id)
-    {
-        match result_data {
-            Ok(chunk_data) => output_writer.write_all(&chunk_data).await?,
-            Err(e) => {
-                /* eprintln!("Error in processed chunk {}: {:?}", context.current_expected_chunk_id, e); */
-                return Err(e);
-            }
-        }
-        context.current_expected_chunk_id += 1;
-    }
-    Ok(())
-}
-
-async fn await_and_process_task_result(
-    context: &mut ProcessingContext,
-    results_rx: &mut mpsc::Receiver<(usize, io::Result<Vec<u8>>)>,
-    output_writer: &mut io_handler::OutputWriter,
-) -> io::Result<bool> {
-    // Returns true if the main loop should break due to channel close or error
-    // This select will only proceed if there are active tasks or if EOF has been reached (to drain pending results).
-    // The `if` condition on `results_rx.recv()` is crucial.
-    tokio::select! {
-        biased; // Process received results first if available.
-        maybe_result = results_rx.recv(), if !context.dispatched_task_handles.is_empty() || context.input_eof => {
-            // process_received_results returns Ok(true) if the channel was closed, signaling a break.
-            // It returns Ok(false) if a result was processed normally.
-            // It returns Err if writing failed.
-            return process_received_results(context, maybe_result, output_writer).await;
-        }
-        // else => {
-            // This else branch would be hit if the condition on results_rx.recv() is false.
-            // This means no tasks are dispatched AND input is not EOF.
-            // In this scenario, the main loop should continue to try spawning more tasks.
-            // So, we don't want to break here.
-        // }
-        else => {
-            // This branch is taken if the condition on results_rx.recv() is false.
-            // This means: context.dispatched_task_handles.is_empty() && !context.input_eof.
-            // In this situation, the main loop should attempt to spawn more tasks, so we don't break.
-            Ok(false) // Removed redundant return
-        }
-    }
-    // This line is now truly unreachable due to the `else` branch also returning/being an expression.
-    // Ok(false)
-}
-
-async fn main_processing_loop(
-    config: &CoreConfig,
-    input_reader: &mut io_handler::InputReader,
-    output_writer: &mut io_handler::OutputWriter,
-    effective_chunk_size: usize,
-) -> io::Result<()> {
-    let (results_tx, mut results_rx) = mpsc::channel(config.num_threads * 2); // Buffer for results
-    let mut context = ProcessingContext::new();
-
-    loop {
-        // Attempt to spawn new tasks if there's capacity and input available.
-        manage_task_spawning_and_input_reading(
-            &mut context,
-            input_reader,
-            effective_chunk_size,
-            config.num_threads,
-            config.bpe_data.clone(),
-            results_tx.clone(), // Clone sender for each task spawner iteration
-        )
-        .await?;
-
-        // Condition 1: If all input has been read (EOF) and all dispatched tasks have finished processing
-        // (i.e., their results are either in `received_results` or have been written),
-        // then we can break the loop. `finalize_results` will handle any remaining ordered writes.
-        if context.input_eof && context.dispatched_task_handles.is_empty() {
-            break;
-        }
-
-        // If there are no tasks running and input is not yet EOF, we should continue to the next iteration
-        // to spawn more tasks. Avoid calling `await_and_process_task_result` if it would block indefinitely.
-        if context.dispatched_task_handles.is_empty() && !context.input_eof {
-            // This case should ideally be handled by manage_task_spawning filling up workers,
-            // but as a safeguard, ensure we loop back to try spawning if nothing is running.
-            continue;
-        }
-
-        // Await and process at least one task result.
-        // If `await_and_process_task_result` returns true, it means the results channel closed or an error occurred,
-        // so the main loop should terminate.
-        if await_and_process_task_result(&mut context, &mut results_rx, output_writer).await? {
-            break; // Break if channel closed or error in processing/writing
-        }
-
-        // Condition 2: After processing a result, check again if all work is truly done.
-        // This handles the case where processing the last result makes everything complete.
-        if context.input_eof
-            && context.dispatched_task_handles.is_empty()
-            && context.received_results.is_empty()
-        {
-            break;
-        }
-    }
-
-    drop(results_tx); // Explicitly drop the sender to close the channel.
-
-    // Ensure any remaining results in the channel or context are processed and written.
-    finalize_results(&mut context, &mut results_rx, output_writer).await?;
-    Ok(())
-}
-
-async fn finalize_results(
-    context: &mut ProcessingContext,
-    results_rx: &mut mpsc::Receiver<(usize, io::Result<Vec<u8>>)>,
-    output_writer: &mut io_handler::OutputWriter,
-) -> io::Result<()> {
-    while let Some((task_id, result)) = results_rx.recv().await {
-        context.received_results.insert(task_id, result);
-        write_ordered_results(context, output_writer).await?;
-    }
-    write_ordered_results(context, output_writer).await?; // Final check
-    Ok(())
-}
-
-/// Runs the byte-level tokenizer based on the provided configuration.
-///
-/// This is the main entry point for the `blt_core` library. It orchestrates the
-/// entire tokenization process:
-/// 1. Sets up input and output (file or stdin/stdout).
-/// 2. Calculates an effective chunk size based on configuration and system resources.
-/// 3. If a content type is specified, prepends its corresponding token to the output.
-/// 4. Reads the input in chunks, processing each chunk concurrently using Tokio tasks.
-/// 5. Applies tokenization strategies (currently BPE if merges are provided).
-/// 6. Ensures processed chunks are written to the output in the correct order.
-/// 7. Flushes the output writer to ensure all data is written.
-///
-/// # Arguments
-///
-/// * `config`: A `CoreConfig` struct containing all necessary parameters for
-///   the tokenization process, such as input/output paths, BPE merge data,
-///   number of threads, etc.
-///
-/// # Returns
-///
-/// * `io::Result<()>`: Returns `Ok(())` on successful completion, or an `io::Error`
-///   if any part of the process fails (e.g., file I/O errors, task processing errors).
-///
-/// # Errors
-///
-/// This function can return errors related to:
-/// - File system operations (opening/creating files, reading/writing).
-/// - Invalid configuration (though many checks are done at the CLI layer).
-/// - Failures during chunk processing within worker tasks.
-pub async fn run_tokenizer(config: CoreConfig) -> io::Result<()> {
-    let effective_chunk_size = chunking::get_effective_chunk_size(&config);
-    // println!("Effective chunk size to be used: {} bytes", effective_chunk_size);
-
-    let (mut input_reader, mut output_writer) = initialize_io(&config).await?;
-    prepend_content_type_token(&mut output_writer, config.content_type.as_ref()).await?;
-
-    main_processing_loop(
-        &config,
-        &mut input_reader,
-        &mut output_writer,
-        effective_chunk_size,
-    )
-    .await?;
-
-    output_writer.flush().await?; // Ensure all buffered data is written
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_content_type_get_token_value() {
-        assert_eq!(ContentType::Text.get_token_value(), 0xFF01);
-        assert_eq!(ContentType::Audio.get_token_value(), 0xFF02);
-        assert_eq!(ContentType::Bin.get_token_value(), 0xFF03);
-        assert_eq!(ContentType::Video.get_token_value(), 0xFF04); // Test for Video
-    }
-
-    // Add more tests for lib.rs specific logic if any parts can be unit tested in isolation.
-    // For example, testing parts of the ProcessingContext or specific state transitions if they were public
-    // and didn't solely rely on private fields or heavy async machinery.
-    // For now, the main run_tokenizer loop is best tested via integration tests.
 }

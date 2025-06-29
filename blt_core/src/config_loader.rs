@@ -1,13 +1,17 @@
 // blt_core/src/config_loader.rs
 // For loading configurations like BPE merges from files.
 
+//! This module is internal to `blt_core` and handles loading BPE merge files.
+//!
+//! It is not intended for direct use by external crates.
+
 use crate::BpeMerges; // Using the type alias from lib.rs
                       // use std::collections::HashMap; // Unused here as BpeMerges is from lib.rs
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::Path;
 
-pub fn load_bpe_merges_from_path(path: &Path) -> io::Result<BpeMerges> {
+pub(crate) fn load_bpe_merges_from_path(path: &Path) -> io::Result<BpeMerges> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
     let mut merges = BpeMerges::new();

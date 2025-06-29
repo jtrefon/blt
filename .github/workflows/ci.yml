@@ -1,281 +1,88 @@
-name: Rust CI/CD
+name: Build, Test, and Release
 
 on:
   push:
-    branches: [ main ]
-    tags:
-      - 'v*.*.*' # Trigger on version tags like v0.1.0, v1.2.3
-      - 'v*.*.*-*' # Trigger on version tags with pre-release suffixes like v0.1.0-alpha
+    branches: [ "main" ]
+    tags: [ 'v*.*.*' ]
   pull_request:
-    branches: [ main ]
+    branches: [ "main" ]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build_and_test_linux:
-    name: Build & Test (Linux)
+  test_and_lint:
+    name: Test & Lint
     runs-on: ubuntu-latest
-    env:
-      TARGET: x86_64-unknown-linux-gnu
-      ARTIFACT_SUFFIX: tar.gz
-      ARTIFACT_NAME: blt-linux-x86_64
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install build dependencies (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config libssl-dev
-
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: ${{ env.TARGET }}
-          override: true
-          components: clippy, rustfmt
-
-      - name: Cache Cargo dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Build
-        run: cargo build --release --target ${{ env.TARGET }}
-
-      - name: Run Clippy
-        run: cargo clippy --target ${{ env.TARGET }} --all-features -- -D warnings
-
-      - name: Run tests
-        run: cargo test --target ${{ env.TARGET }} --all-features
-
-      - name: Package release
-        if: success() && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
-        shell: bash
-        run: |
-          mkdir -p artifacts
-          cp target/${{ env.TARGET }}/release/blt artifacts/blt-executable
-          cd artifacts
-          tar -czvf ${{ env.ARTIFACT_NAME }}.tar.gz blt-executable
-          cd ..
-          echo "artifact_name=${{ env.ARTIFACT_NAME }}.${{ env.ARTIFACT_SUFFIX }}" >> $GITHUB_OUTPUT
-
-      - name: Upload build artifact
-        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: artifacts/${{ env.ARTIFACT_NAME }}.${{ env.ARTIFACT_SUFFIX }}
-
-  build_and_test_macos:
-    name: Build & Package (macOS)
-    runs-on: macos-latest
-    env:
-      TARGET: x86_64-apple-darwin
-      ARTIFACT_SUFFIX: tar.gz
-      ARTIFACT_NAME: blt-macos-x86_64
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: ${{ env.TARGET }}
-          override: true
-          components: clippy, rustfmt
-
-      - name: Cache Cargo dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Build
-        run: cargo build --release --target ${{ env.TARGET }}
-
-      - name: Run Clippy
-        run: cargo clippy --target ${{ env.TARGET }} --all-features -- -D warnings
-
-      - name: Run tests
-        run: cargo test --target ${{ env.TARGET }} --all-features
-
-      - name: Package release
-        if: success() && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
-        shell: bash
-        run: |
-          mkdir -p artifacts
-          cp target/${{ env.TARGET }}/release/blt artifacts/blt-executable
-          cd artifacts
-          tar -czvf ${{ env.ARTIFACT_NAME }}.tar.gz blt-executable
-          cd ..
-          echo "artifact_name=${{ env.ARTIFACT_NAME }}.${{ env.ARTIFACT_SUFFIX }}" >> $GITHUB_OUTPUT
-
-      - name: Upload build artifact
-        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: artifacts/${{ env.ARTIFACT_NAME }}.${{ env.ARTIFACT_SUFFIX }}
-
-  build_and_test_windows:
-    name: Build & Test (Windows)
-    runs-on: windows-latest
-    env:
-      TARGET: x86_64-pc-windows-msvc
-      ARTIFACT_SUFFIX: zip
-      ARTIFACT_NAME: blt-windows-x86_64
-
-    steps:
-      - uses: actions/checkout@v4
-
-
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: ${{ matrix.target }} # Install specific target
-          override: true
-          components: clippy, rustfmt
-
-      - name: Install build dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config libssl-dev
-
-      - name: Build
-        run: |
-          cargo build --release --target ${{ env.TARGET }}
-
-
-      - name: Cache Cargo dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
+          components: rustfmt, clippy
       - name: Check formatting
         run: cargo fmt --all -- --check
-
-      - name: Run Clippy
-        run: cargo clippy --target ${{ matrix.target }} --all-features -- -D warnings
-
+      - name: Run linter checks
+        run: cargo clippy --all -- -D warnings
       - name: Run tests
-        run: cargo test --target ${{ env.TARGET }} --all-features
+        run: cargo test --all
 
-      - name: Build release binary
-        run: cargo build --release --target ${{ env.TARGET }}
-
-      - name: Package release
-        if: success() && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
+  build:
+    name: Build Release Binaries
+    needs: test_and_lint
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: blt-linux-amd64
+            asset_name: blt-linux-amd64.tar.gz
+          - os: macos-latest
+            artifact_name: blt-macos-amd64
+            asset_name: blt-macos-amd64.tar.gz
+          - os: windows-latest
+            artifact_name: blt-windows-amd64
+            asset_name: blt-windows-amd64.zip
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Build binary
+        run: cargo build --release --locked
+      - name: Package for release
         shell: bash
         run: |
-          # Create artifacts directory
-          mkdir -p artifacts
-          
-          # Copy the built binary to a consistent name for packaging
+          mkdir staging
           if [ "${{ runner.os }}" = "Windows" ]; then
-            cp target/${{ env.TARGET }}/release/blt.exe artifacts/blt-executable.exe
-            # Package for Windows
-            cd artifacts
-            7z a ${{ env.ARTIFACT_NAME }}.zip blt-executable.exe
-            cd ..
+            cp target/release/blt.exe staging/
+            cd staging
+            7z a ../${{ matrix.asset_name }} .
           else
-            cp target/${{ env.TARGET }}/release/blt artifacts/blt-executable
-            # Package for Linux/macOS
-            cd artifacts
-            tar -czvf ${{ env.ARTIFACT_NAME }}.tar.gz blt-executable
-            cd ..
+            cp target/release/blt staging/
+            cd staging
+            tar czf ../${{ matrix.asset_name }} .
           fi
-          
-          # Set output for artifact name
-          echo "artifact_name=${{ env.ARTIFACT_NAME }}.${{ env.ARTIFACT_SUFFIX }}" >> $GITHUB_OUTPUT
-
-      - name: Upload build artifact
-        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         with:
-          name: blt-${{ matrix.os_name }}-${{ matrix.arch }} # e.g., blt-linux-x86_64
-          path: ../artifacts/blt-${{ matrix.os_name }}-${{ matrix.arch }}.${{ matrix.artifact_suffix }}
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.asset_name }}
 
-  # Optional: Create GitHub Release (only for tags)
-  create_release:
+  create_github_release:
     name: Create GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build_and_test_linux, build_and_test_macos, build_and_test_windows] # Depends on all build jobs
+    needs: build
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required to create a release
+      contents: write
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts # Downloads all artifacts into an 'artifacts' directory, each in a subdirectory named after the artifact name from the upload step.
-          # e.g., artifacts/blt-linux-x86_64/blt-linux-x86_64.tar.gz
-          # e.g., artifacts/blt-macos-aarch64/blt-macos-aarch64.tar.gz
-          # e.g., artifacts/blt-windows-x86_64/blt-windows-x86_64.zip
-
-      - name: List downloaded artifacts # For debugging
-        run: ls -R artifacts
-
+      - uses: actions/download-artifact@v3
+      - name: Display structure of downloaded files
+        run: ls -R
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
-          body: |
-            Release of version ${{ github.ref_name }}
-            Please find the attached assets.
-          draft: false
-          prerelease: false
-
-      - name: Upload Release Asset (Linux)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/blt-linux-x86_64/blt-linux-x86_64.tar.gz # Adjusted path based on new artifact naming
-          asset_name: blt-${{ github.ref_name }}-linux-x86_64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload Release Asset (macOS x86_64)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/blt-macos-x86_64/blt-macos-x86_64.tar.gz
-          asset_name: blt-${{ github.ref_name }}-macos-x86_64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload Release Asset (Windows x86_64)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/blt-windows-x86_64/blt-windows-x86_64.zip
-          asset_name: blt-${{ github.ref_name }}-windows-x86_64.zip
-          asset_content_type: application/zip
+          files: "blt-*/blt-*"
+          fail_on_unmatched_files: true
