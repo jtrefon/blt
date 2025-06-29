@@ -124,7 +124,11 @@ jobs:
         with:
           python-version: '3.8'
       - name: Install maturin
+        if: matrix.os == 'ubuntu-latest'
         run: pip install maturin[patchelf]
+      - name: Install maturin (non-linux)
+        if: matrix.os != 'ubuntu-latest'
+        run: pip install maturin
       - name: Build Python wheel
         working-directory: blt_python
         run: maturin build --release --target ${{ matrix.target }} --out dist

@@ -28,7 +28,13 @@ python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install maturin and build
+# On Linux
 pip install maturin[patchelf]
+
+# On macOS or Windows
+pip install maturin
+
+# Build and install for development
 maturin develop
 
 # Install development dependencies
