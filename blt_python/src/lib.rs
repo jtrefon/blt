@@ -1,3 +1,4 @@
+#![allow(clippy::useless_conversion)]
 use blt_core::{run_tokenizer, ContentType, CoreConfig};
 use pyo3::prelude::*;
 use std::collections::HashMap;
@@ -93,41 +94,22 @@ impl ByteTokenizer {
     ///
     /// * `RuntimeError` - If tokenization fails
     /// * `IOError` - If file operations fail
+    #[allow(clippy::useless_conversion)]
     pub fn tokenize_file(&self, input_path: &str, output_path: &str) -> PyResult<()> {
-        let rt = tokio::runtime::Runtime::new().map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                "Failed to create async runtime: {}",
-                e
-            ))
-        })?;
+        let rt = tokio::runtime::Runtime::new()?;
 
         rt.block_on(async {
             // Create temporary file for merges if we have them
             let _temp_file = if let Some(ref merges) = self.merges {
-                let temp_file = tempfile::NamedTempFile::new().map_err(|e| {
-                    PyErr::new::<pyo3::exceptions::PyIOError, _>(format!(
-                        "Failed to create temporary file: {}",
-                        e
-                    ))
-                })?;
+                let temp_file = tempfile::NamedTempFile::new()?;
 
                 // Write merges to temporary file
                 use std::io::Write;
                 {
-                    let mut file = std::fs::File::create(temp_file.path()).map_err(|e| {
-                        PyErr::new::<pyo3::exceptions::PyIOError, _>(format!(
-                            "Failed to write merges file: {}",
-                            e
-                        ))
-                    })?;
+                    let mut file = std::fs::File::create(temp_file.path())?;
 
-                    for ((a, b), _token) in merges {
-                        writeln!(file, "{} {}", a, b).map_err(|e| {
-                            PyErr::new::<pyo3::exceptions::PyIOError, _>(format!(
-                                "Failed to write merge: {}",
-                                e
-                            ))
-                        })?;
+                    for (a, b) in merges.keys() {
+                        writeln!(file, "{} {}", a, b)?;
                     }
                 }
 
@@ -146,20 +128,9 @@ impl ByteTokenizer {
                     self.threads,
                     self.chunk_size.clone(),
                     self.memory_cap,
-                )
-                .map_err(|e| {
-                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                        "Failed to create configuration: {}",
-                        e
-                    ))
-                })?;
+                )?;
 
-                run_tokenizer(config).await.map_err(|e| {
-                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                        "Tokenization failed: {}",
-                        e
-                    ))
-                })?;
+                run_tokenizer(config).await?;
 
                 Some(temp_file)
             } else {
@@ -178,30 +149,17 @@ impl ByteTokenizer {
                     self.threads,
                     self.chunk_size.clone(),
                     self.memory_cap,
-                )
-                .map_err(|e| {
-                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                        "Failed to create configuration: {}",
-                        e
-                    ))
-                })?;
+                )?;
 
-                run_tokenizer(config).await.map_err(|e| {
-                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                        "Tokenization failed: {}",
-                        e
-                    ))
-                })?;
+                run_tokenizer(config).await?;
 
                 None
             };
 
             // Keep temp file alive until this point
             drop(_temp_file);
-            Ok::<(), PyErr>(())
-        })?;
-
-        Ok(())
+            Ok(())
+        })
     }
 
     /// String representation of the tokenizer configuration.
@@ -232,10 +190,9 @@ impl ByteTokenizer {
 /// * `IOError` - If file cannot be read
 /// * `ValueError` - If file format is invalid
 #[pyfunction]
+#[allow(clippy::useless_conversion)]
 pub fn load_bpe_merges(path: &str) -> PyResult<HashMap<(u8, u8), u16>> {
-    blt_core::load_bpe_merges(&PathBuf::from(path)).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyIOError, _>(format!("Failed to load BPE merges: {}", e))
-    })
+    blt_core::load_bpe_merges(&PathBuf::from(path)).map_err(|e| e.into())
 }
 
 /// Get the version of the BLT library.
