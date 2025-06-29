@@ -15,10 +15,10 @@ jobs:
     name: Test & Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
           components: rustfmt, clippy
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -45,10 +45,9 @@ jobs:
             artifact_name: blt-windows-amd64
             asset_name: blt-windows-amd64.zip
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
       - name: Build binary
         run: cargo build --release --locked
       - name: Package for release
@@ -64,7 +63,7 @@ jobs:
             cd staging
             tar czf ../${{ matrix.asset_name }} .
           fi
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.asset_name }}
@@ -77,12 +76,15 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
       - name: Display structure of downloaded files
-        run: ls -R
+        run: ls -R artifacts
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          files: "blt-*/blt-*"
+          files: "artifacts/*"
           fail_on_unmatched_files: true

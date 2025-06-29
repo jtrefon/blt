@@ -2,7 +2,7 @@
 
 [![Apache 2.0 License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Crates.io](https://img.shields.io/crates/v/blt.svg)](https://crates.io/crates/blt)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/username/blt/ci.yml?branch=main)](https://github.com/username/blt/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/jtrefon/blt/ci.yml?branch=main)](https://github.com/jtrefon/blt/actions)
 
 A high-performance, modality-agnostic byte‑level tokenizer designed to convert any digital content (text, audio, images, binaries) into discrete tokens for modern AI and LLM pipelines.
 
@@ -32,7 +32,7 @@ A high-performance, modality-agnostic byte‑level tokenizer designed to convert
 
 ```bash
 # Clone the repository
-git clone https://github.com/username/blt.git
+git clone https://github.com/jtrefon/blt.git
 cd blt
 
 # Build in release mode for optimal performance
@@ -290,7 +290,7 @@ We welcome contributions! Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) fo
 
 ```bash
 # 1. Fork and clone
-git clone https://github.com/yourusername/blt.git
+git clone https://github.com/jtrefon/blt.git
 cd blt
 
 # 2. Create a feature branch
