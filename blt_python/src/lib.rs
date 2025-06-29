@@ -96,8 +96,7 @@ impl ByteTokenizer {
     pub fn tokenize_file(&self, input_path: &str, output_path: &str) -> PyResult<()> {
         let rt = tokio::runtime::Runtime::new().map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                "Failed to create async runtime: {}",
-                e
+                "Failed to create async runtime: {e}"
             ))
         })?;
 
@@ -106,8 +105,7 @@ impl ByteTokenizer {
             let _temp_file = if let Some(ref merges) = self.merges {
                 let temp_file = tempfile::NamedTempFile::new().map_err(|e| {
                     PyErr::new::<pyo3::exceptions::PyIOError, _>(format!(
-                        "Failed to create temporary file: {}",
-                        e
+                        "Failed to create temporary file: {e}"
                     ))
                 })?;
 
@@ -116,16 +114,14 @@ impl ByteTokenizer {
                 {
                     let mut file = std::fs::File::create(temp_file.path()).map_err(|e| {
                         PyErr::new::<pyo3::exceptions::PyIOError, _>(format!(
-                            "Failed to write merges file: {}",
-                            e
+                            "Failed to write merges file: {e}"
                         ))
                     })?;
 
-                    for ((a, b), _token) in merges {
-                        writeln!(file, "{} {}", a, b).map_err(|e| {
+                    for (a, b) in merges.keys() {
+                        writeln!(file, "{a} {b}").map_err(|e| {
                             PyErr::new::<pyo3::exceptions::PyIOError, _>(format!(
-                                "Failed to write merge: {}",
-                                e
+                                "Failed to write merge: {e}"
                             ))
                         })?;
                     }
@@ -149,15 +145,13 @@ impl ByteTokenizer {
                 )
                 .map_err(|e| {
                     PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                        "Failed to create configuration: {}",
-                        e
+                        "Failed to create configuration: {e}"
                     ))
                 })?;
 
                 run_tokenizer(config).await.map_err(|e| {
                     PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                        "Tokenization failed: {}",
-                        e
+                        "Tokenization failed: {e}"
                     ))
                 })?;
 
@@ -181,15 +175,13 @@ impl ByteTokenizer {
                 )
                 .map_err(|e| {
                     PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                        "Failed to create configuration: {}",
-                        e
+                        "Failed to create configuration: {e}"
                     ))
                 })?;
 
                 run_tokenizer(config).await.map_err(|e| {
                     PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                        "Tokenization failed: {}",
-                        e
+                        "Tokenization failed: {e}"
                     ))
                 })?;
 
@@ -234,7 +226,7 @@ impl ByteTokenizer {
 #[pyfunction]
 pub fn load_bpe_merges(path: &str) -> PyResult<HashMap<(u8, u8), u16>> {
     blt_core::load_bpe_merges(&PathBuf::from(path)).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyIOError, _>(format!("Failed to load BPE merges: {}", e))
+        PyErr::new::<pyo3::exceptions::PyIOError, _>(format!("Failed to load BPE merges: {e}"))
     })
 }
 
