@@ -110,15 +110,19 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            python-version: '3.8'
           - os: macos-latest
             target: x86_64-apple-darwin
+            python-version: '3.8'
           - os: macos-latest
             target: aarch64-apple-darwin
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
+            python-version: '3.8'
           - os: macos-latest
             target: aarch64-apple-darwin
             python-version: '3.13'
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            python-version: '3.8'
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust toolchain
@@ -128,7 +132,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version || '3.8' }}
+          python-version: ${{ matrix.python-version }}
       - name: Install maturin
         if: matrix.os == 'ubuntu-latest'
         run: pip install maturin[patchelf]
@@ -141,7 +145,7 @@ jobs:
       - name: Upload Python wheels
         uses: actions/upload-artifact@v4
         with:
-          name: python-wheels-${{ matrix.os }}-${{ matrix.target }}
+          name: python-wheels-${{ matrix.os }}-${{ matrix.target }}-py${{ matrix.python-version }}
           path: blt_python/dist/*.whl
 
   publish_python:
