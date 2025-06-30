@@ -8,14 +8,17 @@ use std::path::PathBuf;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None, name = "blt")]
 struct CliArgs {
-    #[arg(short, long, value_name = "FILE")]
+    #[arg(short, long, value_name = "FILE", help = "Input file path (or - for stdin)")]
     input: Option<PathBuf>,
 
-    #[arg(short, long, value_name = "FILE")]
+    #[arg(short, long, value_name = "FILE", help = "Output file path (or - for stdout)")]
     output: Option<PathBuf>,
 
-    #[arg(long, value_name = "FILE")]
+    #[arg(long, value_name = "FILE", help = "BPE merges file for advanced tokenization")]
     merges: Option<PathBuf>,
+
+    #[arg(long, help = "Use passthrough mode (copy file without tokenization)")]
+    passthrough: bool,
 
     #[arg(long, value_enum, help = "Prepend content-type token")]
     r#type: Option<CliContentType>,
@@ -77,6 +80,7 @@ async fn main() -> io::Result<()> {
         cli_args.threads,
         cli_args.chunksize,
         cli_args.memcap,
+        cli_args.passthrough,
     )?;
 
     if let Err(e) = blt_core::run_tokenizer(core_config).await {

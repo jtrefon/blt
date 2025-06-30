@@ -43,19 +43,21 @@ pip install -e .[dev]
 
 ## 🔧 Usage
 
+BLT provides true tokenization by default - each input byte is converted to a 16-bit token, ensuring all digital content is properly tokenized for AI/LLM workflows.
+
 ### Basic File Tokenization
 
 ```python
 import blt
 
-# Create a tokenizer
+# Create a tokenizer (uses basic byte-to-u16 tokenization by default)
 tokenizer = blt.ByteTokenizer()
 
-# Tokenize a file
+# Tokenize a file (each byte becomes a 16-bit token)
 tokenizer.tokenize_file("input.txt", "output.bin")
 ```
 
-### BPE Tokenization
+### Advanced BPE Tokenization
 
 ```python
 import blt
@@ -63,14 +65,14 @@ import blt
 # Load BPE merges from file
 merges = blt.load_bpe_merges("merges.txt")
 
-# Or define merges manually
+# Or define merges manually for compression
 merges = {
     (97, 98): 256,   # 'a' + 'b' -> token 256
     (99, 100): 257,  # 'c' + 'd' -> token 257
     (101, 102): 258, # 'e' + 'f' -> token 258
 }
 
-# Create tokenizer with BPE merges
+# Create tokenizer with BPE merges for better compression
 tokenizer = blt.ByteTokenizer(merges=merges)
 tokenizer.tokenize_file("input.txt", "output.bin")
 ```

@@ -13,11 +13,11 @@ import os
 
 def example_basic_usage():
     """Demonstrate basic file tokenization."""
-    print("=== File Processing Example ===")
+    print("=== Basic Tokenization Example ===")
     
-    # Create a tokenizer
+    # Create a tokenizer (defaults to basic byte-to-u16 tokenization)
     tokenizer = blt.ByteTokenizer()
-    print(f"Created tokenizer: {tokenizer}")
+    print(f"Created basic tokenizer: {tokenizer}")
     
     # Create a temporary input file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as input_file:
@@ -38,9 +38,10 @@ def example_basic_usage():
         # Tokenize the file
         tokenizer.tokenize_file(input_path, output_path)
         
-        # Check output
+        # Check output (should be ~2x input size due to byte->u16 conversion)
         output_size = os.path.getsize(output_path)
         print(f"Output file size: {output_size} bytes")
+        print(f"Size ratio: {output_size/input_size:.1f}x (each byte becomes u16 token)")
         
         # Read first 20 bytes of output
         with open(output_path, 'rb') as f:

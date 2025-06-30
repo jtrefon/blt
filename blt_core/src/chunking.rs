@@ -89,6 +89,7 @@ mod tests {
             cli_chunk_size,
             mem_cap_percent,
             bpe_data: None,
+            passthrough_mode: false,
         }
     }
 

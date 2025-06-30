@@ -28,11 +28,12 @@
 //!     let config = CoreConfig::new_from_cli(
 //!         Some(PathBuf::from("input.txt")),
 //!         Some(PathBuf::from("output.bin")),
-//!         None, // No BPE merges, use passthrough
+//!         None, // No BPE merges, use basic tokenization
 //!         None,
 //!         None,
 //!         None,
 //!         None,
+//!         false, // Don't use passthrough mode
 //!     ).unwrap();
 //!
 //!     if let Err(e) = run_tokenizer(config).await {
@@ -48,7 +49,7 @@ use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tracing::{info, instrument};
 
-use crate::tokenizer::{BpeStrategy, PassthroughStrategy, TokenizationStrategy};
+use crate::tokenizer::{BasicTokenizationStrategy, BpeStrategy, PassthroughStrategy, TokenizationStrategy};
 
 // --- Module declarations ---
 /// Handles dynamic chunk sizing based on system memory and CLI parameters.
@@ -122,6 +123,8 @@ pub struct CoreConfig {
     pub mem_cap_percent: u8,
     /// Pre-loaded BPE merge data.
     pub bpe_data: Option<Arc<BpeMerges>>,
+    /// Whether to use passthrough mode (file copying without tokenization).
+    pub passthrough_mode: bool,
 }
 
 impl CoreConfig {
@@ -139,6 +142,7 @@ impl CoreConfig {
     /// * `threads`: Optional number of threads to use.
     /// * `chunksize`: Optional chunk size as a string (e.g., "16MB").
     /// * `memcap`: Optional memory capacity percentage.
+    /// * `passthrough`: Whether to use passthrough mode.
     pub fn new_from_cli(
         input: Option<PathBuf>,
         output: Option<PathBuf>,
@@ -147,6 +151,7 @@ impl CoreConfig {
         threads: Option<usize>,
         chunksize: Option<String>,
         memcap: Option<u8>,
+        passthrough: bool,
     ) -> io::Result<Self> {
         let num_threads = utils::determine_thread_count(threads);
         let cli_chunk_size = Self::parse_chunksize(chunksize)?;
@@ -161,6 +166,7 @@ impl CoreConfig {
             cli_chunk_size,
             mem_cap_percent: memcap.unwrap_or(80),
             bpe_data,
+            passthrough_mode: passthrough,
         })
     }
 
@@ -260,12 +266,15 @@ pub async fn run_tokenizer(config: CoreConfig) -> io::Result<()> {
 // --- Private Helper Functions ---
 
 fn select_strategy(config: &CoreConfig) -> Arc<dyn TokenizationStrategy> {
-    if let Some(ref bpe_data) = config.bpe_data {
+    if config.passthrough_mode {
+        info!("Using passthrough strategy (file copying without tokenization).");
+        Arc::new(PassthroughStrategy)
+    } else if let Some(ref bpe_data) = config.bpe_data {
         info!("Using BPE tokenization strategy.");
         Arc::new(BpeStrategy::new(bpe_data.clone()))
     } else {
-        info!("Using passthrough tokenization strategy.");
-        Arc::new(PassthroughStrategy)
+        info!("Using basic tokenization strategy (byte-to-u16 conversion).");
+        Arc::new(BasicTokenizationStrategy)
     }
 }
 

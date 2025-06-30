@@ -33,7 +33,13 @@ fn test_cli_stdin_stdout() {
 
     let output = child.wait_with_output().expect("Failed to read stdout");
     assert!(output.status.success());
-    assert_eq!(output.stdout, b"hello world");
+    
+    // Expected: each byte converted to u16 token in big-endian format
+    let mut expected_output = Vec::new();
+    for &byte in b"hello world" {
+        expected_output.extend_from_slice(&(byte as u16).to_be_bytes());
+    }
+    assert_eq!(output.stdout, expected_output);
 }
 
 #[test]
@@ -60,11 +66,17 @@ fn test_cli_input_output_files() {
     let status = cmd.status().expect("Failed to run CLI process");
     assert!(status.success());
 
-    let mut output_content = String::new();
     // Re-open the output file for reading
+    let mut output_content = Vec::new();
     let mut f = File::open(&output_file_path_holder).unwrap();
-    f.read_to_string(&mut output_content).unwrap();
-    assert_eq!(output_content, "hello from file");
+    f.read_to_end(&mut output_content).unwrap();
+    
+    // Expected: each byte converted to u16 token in big-endian format
+    let mut expected_output = Vec::new();
+    for &byte in b"hello from file" {
+        expected_output.extend_from_slice(&(byte as u16).to_be_bytes());
+    }
+    assert_eq!(output_content, expected_output);
 }
 
 #[test]
@@ -85,7 +97,10 @@ fn test_cli_type_argument() {
 
     let mut expected_output = Vec::new();
     expected_output.extend_from_slice(&0xFF01u16.to_be_bytes()); // Text token
-    expected_output.extend_from_slice(b"test");
+    // Each byte of "test" converted to u16 token
+    for &byte in b"test" {
+        expected_output.extend_from_slice(&(byte as u16).to_be_bytes());
+    }
     assert_eq!(output.stdout, expected_output);
 }
 
@@ -142,7 +157,13 @@ fn test_cli_chunksize_argument() {
     }
     let output = child.wait_with_output().expect("Failed to read stdout");
     assert!(output.status.success());
-    assert_eq!(output.stdout, b"some data"); // BPE not active, so identity
+    
+    // Expected: each byte converted to u16 token (basic tokenization)
+    let mut expected_output = Vec::new();
+    for &byte in b"some data" {
+        expected_output.extend_from_slice(&(byte as u16).to_be_bytes());
+    }
+    assert_eq!(output.stdout, expected_output);
 }
 
 #[test]
@@ -162,5 +183,32 @@ fn test_cli_threads_argument() {
     }
     let output = child.wait_with_output().expect("Failed to read stdout");
     assert!(output.status.success());
-    assert_eq!(output.stdout, b"thread test");
+    
+    // Expected: each byte converted to u16 token (basic tokenization)
+    let mut expected_output = Vec::new();
+    for &byte in b"thread test" {
+        expected_output.extend_from_slice(&(byte as u16).to_be_bytes());
+    }
+    assert_eq!(output.stdout, expected_output);
+}
+
+#[test]
+fn test_cli_passthrough_mode() {
+    let cli_path = get_cli_binary_path();
+    let mut cmd = Command::new(cli_path);
+    cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
+    cmd.arg("--passthrough");
+
+    let mut child = cmd.spawn().expect("Failed to spawn CLI process");
+    {
+        let stdin = child.stdin.as_mut().expect("Failed to open stdin");
+        stdin
+            .write_all(b"passthrough test")
+            .expect("Failed to write to stdin");
+    }
+    let output = child.wait_with_output().expect("Failed to read stdout");
+    assert!(output.status.success());
+    
+    // Passthrough mode should return the input unchanged
+    assert_eq!(output.stdout, b"passthrough test");
 }

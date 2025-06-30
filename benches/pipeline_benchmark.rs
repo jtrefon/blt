@@ -37,6 +37,7 @@ fn benchmark_pipeline(c: &mut Criterion) {
                 None,
                 None,
                 None,
+                true, // Use passthrough mode for performance benchmarking
             )
             .unwrap();
             async {
@@ -65,6 +66,7 @@ fn benchmark_pipeline(c: &mut Criterion) {
                 None,
                 None,
                 None,
+                true, // Use passthrough mode for performance benchmarking
             )
             .unwrap();
             async {
@@ -93,6 +95,7 @@ fn benchmark_pipeline(c: &mut Criterion) {
                 None,
                 None,
                 None,
+                true, // Use passthrough mode for performance benchmarking
             )
             .unwrap();
             async {

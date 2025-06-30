@@ -7,8 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🚨 Breaking Changes
+- **Default behavior now performs actual tokenization**: Previously, without BPE merges, the tokenizer would just copy files unchanged (passthrough mode). Now it performs basic byte-to-u16 tokenization by default, which is what users expect from a "tokenizer"
+- **New `--passthrough` flag**: Added explicit flag for file copying without tokenization
+- **API consistency**: Python and CLI APIs now behave consistently - both tokenize by default
+
+### ✨ Added
+- **BasicTokenizationStrategy**: New default strategy that converts each byte to a 16-bit token
+- **Explicit passthrough mode**: `--passthrough` CLI flag for file copying without tokenization
+- **Improved documentation**: Clear explanation of tokenization modes and expected behavior
+- **Enhanced CLI help**: Better descriptions for all command-line options
+
+### 🔄 Changed
+- **Default strategy**: Changed from PassthroughStrategy to BasicTokenizationStrategy when no BPE merges provided
+- **Strategy selection logic**: Now considers explicit passthrough flag before selecting tokenization strategy
+- **Documentation**: Updated all examples to reflect new default behavior
+
 ### Planned
-- Python bindings via PyO3
 - REST API microservice
 - Plugin ecosystem for custom tokenization strategies
 

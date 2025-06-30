@@ -14,7 +14,7 @@ A high-performance, modality-agnostic byte‑level tokenizer designed to convert
 
 * **Lossless Byte Coverage** – Tokenize any file as raw bytes with no unknown symbols.
 * **High Performance** – Memory-mapped I/O with async, multi-threaded processing pipeline.
-* **Configurable Strategies** – Support for Byte-Pair Encoding (BPE) merges and passthrough tokenization.
+* **Configurable Strategies** – Basic byte-to-token conversion, advanced Byte-Pair Encoding (BPE), and passthrough modes.
 * **Auto-scaling** – Automatically detects and utilizes available CPU cores and RAM.
 * **Flexible I/O** – Supports files, stdin/stdout, with configurable chunk sizing and memory limits.
 * **Production Ready** – Comprehensive testing, benchmarking, CI/CD, and structured logging.
@@ -101,7 +101,8 @@ blt [OPTIONS]
 |--------|-------------|---------|
 | `-i, --input <PATH>` | Input file path (use `-` for stdin) | stdin |
 | `-o, --output <PATH>` | Output file path (use `-` for stdout) | stdout |
-| `-m, --merges <PATH>` | BPE merges file (optional) | None (passthrough mode) |
+| `-m, --merges <PATH>` | BPE merges file for advanced tokenization | None (basic tokenization) |
+| `--passthrough` | Copy files without tokenization | Basic tokenization |
 | `-t, --type <TYPE>` | Content type: `text`, `audio`, `bin`, `video` | None |
 | `--threads <NUM>` | Number of processing threads | Auto-detected CPU cores |
 | `--chunksize <SIZE>` | Chunk size (e.g., `16MB`, `1024KB`) | Auto-calculated |
@@ -113,7 +114,7 @@ blt [OPTIONS]
 
 **Basic Usage:**
 ```bash
-# Tokenize a text file
+# Basic tokenization (converts each byte to u16 token)
 ./target/release/blt -i document.txt -o tokens.bin
 
 # Use stdin/stdout
@@ -121,6 +122,9 @@ echo "Hello, world!" | ./target/release/blt --input - --output -
 
 # Specify content type
 ./target/release/blt -i video.mp4 -o tokens.bin --type video
+
+# Copy file without tokenization (passthrough mode)
+./target/release/blt -i document.txt -o copy.txt --passthrough
 ```
 
 **With BPE Merges:**
@@ -147,11 +151,11 @@ echo "Hello, world!" | ./target/release/blt --input - --output -
 ```python
 import blt
 
-# Basic usage
+# Basic tokenization (byte-to-u16 conversion)
 tokenizer = blt.ByteTokenizer()
 tokenizer.tokenize_file("input.txt", "output.bin")
 
-# With BPE merges
+# With BPE merges for advanced compression
 merges = {(97, 98): 256}  # 'a' + 'b' -> token 256
 tokenizer = blt.ByteTokenizer(merges=merges)
 tokenizer.tokenize_file("input.txt", "output.bin")

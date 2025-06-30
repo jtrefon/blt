@@ -128,6 +128,7 @@ impl ByteTokenizer {
                     self.threads,
                     self.chunk_size.clone(),
                     self.memory_cap,
+                    false, // Don't use passthrough mode in Python API
                 )?;
 
                 run_tokenizer(config).await?;
@@ -149,6 +150,7 @@ impl ByteTokenizer {
                     self.threads,
                     self.chunk_size.clone(),
                     self.memory_cap,
+                    false, // Don't use passthrough mode in Python API
                 )?;
 
                 run_tokenizer(config).await?;

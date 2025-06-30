@@ -93,19 +93,50 @@ impl TokenizationStrategy for BpeStrategy {
     }
 }
 
-// --- Passthrough Strategy Implementation (Default) ---
+// --- Basic Tokenization Strategy (New Default) ---
+
+/// A tokenization strategy that converts each byte to a 16-bit token.
+///
+/// This strategy converts each input byte to a u16 token (256-511 range)
+/// without applying any BPE merges. This provides true tokenization while
+/// maintaining simplicity for users who don't need BPE compression.
+pub struct BasicTokenizationStrategy;
+
+#[async_trait::async_trait]
+impl TokenizationStrategy for BasicTokenizationStrategy {
+    #[instrument(skip(self, chunk_data), name = "basic_tokenization_strategy_process")]
+    async fn process_chunk(&self, chunk_data: &[u8]) -> io::Result<Vec<u8>> {
+        if chunk_data.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        debug!("Converting {} bytes to u16 tokens", chunk_data.len());
+        
+        // Convert each byte to u16 token (byte value range: 0-255)
+        let mut output_bytes = Vec::with_capacity(chunk_data.len() * 2);
+        for &byte in chunk_data {
+            let token = byte as u16;
+            output_bytes.extend_from_slice(&token.to_be_bytes());
+        }
+        
+        Ok(output_bytes)
+    }
+}
+
+// --- Passthrough Strategy Implementation (Explicit Copy Mode) ---
 
 /// A tokenization strategy that performs no operations.
 ///
-/// This strategy simply returns the input chunk as-is, acting as a no-op. It is used
-/// when no BPE merges are provided.
+/// This strategy simply returns the input chunk as-is, acting as a no-op.
+/// This is explicitly for file copying operations, not tokenization.
+/// Use this only when you specifically want to copy files without any processing.
 pub struct PassthroughStrategy;
 
 #[async_trait::async_trait]
 impl TokenizationStrategy for PassthroughStrategy {
     #[instrument(skip(self, chunk_data), name = "passthrough_strategy_process")]
     async fn process_chunk(&self, chunk_data: &[u8]) -> io::Result<Vec<u8>> {
-        debug!("No BPE merges provided; returning chunk as-is");
+        debug!("Passthrough mode: returning {} bytes unchanged", chunk_data.len());
         Ok(chunk_data.to_vec())
     }
 }
@@ -207,6 +238,30 @@ mod tests {
 
         let result = strategy.process_chunk(chunk).await?;
         assert_eq!(result, u16_vec_to_byte_vec(&expected_tokens));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_basic_tokenization_strategy() -> io::Result<()> {
+        let strategy = BasicTokenizationStrategy;
+        let chunk = b"abc";
+        // 'a' = 97, 'b' = 98, 'c' = 99
+        // As u16 big-endian bytes: [0, 97, 0, 98, 0, 99]
+        let expected_bytes = vec![0, 97, 0, 98, 0, 99];
+
+        let result = strategy.process_chunk(chunk).await?;
+        assert_eq!(result, expected_bytes);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_basic_tokenization_strategy_empty() -> io::Result<()> {
+        let strategy = BasicTokenizationStrategy;
+        let chunk = b"";
+        let expected_bytes: Vec<u8> = vec![];
+
+        let result = strategy.process_chunk(chunk).await?;
+        assert_eq!(result, expected_bytes);
         Ok(())
     }
 
