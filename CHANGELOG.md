@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Planned
+- REST API microservice
+- Plugin ecosystem for custom tokenization strategies
+
+---
+
+## [0.2.2] - 2024-12-30 - **Tokenization UX Fix** 🎯
+
 ### 🚨 Breaking Changes
 - **Default behavior now performs actual tokenization**: Previously, without BPE merges, the tokenizer would just copy files unchanged (passthrough mode). Now it performs basic byte-to-u16 tokenization by default, which is what users expect from a "tokenizer"
 - **New `--passthrough` flag**: Added explicit flag for file copying without tokenization
@@ -23,9 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Strategy selection logic**: Now considers explicit passthrough flag before selecting tokenization strategy
 - **Documentation**: Updated all examples to reflect new default behavior
 
-### Planned
-- REST API microservice
-- Plugin ecosystem for custom tokenization strategies
+### 🐛 Fixed
+- **Pipeline formatting**: Resolved cargo fmt warnings in CI
+- **Clippy warnings**: Added allow attribute for too_many_arguments
 
 ---
 

@@ -111,14 +111,14 @@ impl TokenizationStrategy for BasicTokenizationStrategy {
         }
 
         debug!("Converting {} bytes to u16 tokens", chunk_data.len());
-        
+
         // Convert each byte to u16 token (byte value range: 0-255)
         let mut output_bytes = Vec::with_capacity(chunk_data.len() * 2);
         for &byte in chunk_data {
             let token = byte as u16;
             output_bytes.extend_from_slice(&token.to_be_bytes());
         }
-        
+
         Ok(output_bytes)
     }
 }
@@ -136,7 +136,10 @@ pub struct PassthroughStrategy;
 impl TokenizationStrategy for PassthroughStrategy {
     #[instrument(skip(self, chunk_data), name = "passthrough_strategy_process")]
     async fn process_chunk(&self, chunk_data: &[u8]) -> io::Result<Vec<u8>> {
-        debug!("Passthrough mode: returning {} bytes unchanged", chunk_data.len());
+        debug!(
+            "Passthrough mode: returning {} bytes unchanged",
+            chunk_data.len()
+        );
         Ok(chunk_data.to_vec())
     }
 }

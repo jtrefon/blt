@@ -8,13 +8,27 @@ use std::path::PathBuf;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None, name = "blt")]
 struct CliArgs {
-    #[arg(short, long, value_name = "FILE", help = "Input file path (or - for stdin)")]
+    #[arg(
+        short,
+        long,
+        value_name = "FILE",
+        help = "Input file path (or - for stdin)"
+    )]
     input: Option<PathBuf>,
 
-    #[arg(short, long, value_name = "FILE", help = "Output file path (or - for stdout)")]
+    #[arg(
+        short,
+        long,
+        value_name = "FILE",
+        help = "Output file path (or - for stdout)"
+    )]
     output: Option<PathBuf>,
 
-    #[arg(long, value_name = "FILE", help = "BPE merges file for advanced tokenization")]
+    #[arg(
+        long,
+        value_name = "FILE",
+        help = "BPE merges file for advanced tokenization"
+    )]
     merges: Option<PathBuf>,
 
     #[arg(long, help = "Use passthrough mode (copy file without tokenization)")]

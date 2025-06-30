@@ -33,7 +33,7 @@ fn test_cli_stdin_stdout() {
 
     let output = child.wait_with_output().expect("Failed to read stdout");
     assert!(output.status.success());
-    
+
     // Expected: each byte converted to u16 token in big-endian format
     let mut expected_output = Vec::new();
     for &byte in b"hello world" {
@@ -70,7 +70,7 @@ fn test_cli_input_output_files() {
     let mut output_content = Vec::new();
     let mut f = File::open(&output_file_path_holder).unwrap();
     f.read_to_end(&mut output_content).unwrap();
-    
+
     // Expected: each byte converted to u16 token in big-endian format
     let mut expected_output = Vec::new();
     for &byte in b"hello from file" {
@@ -97,7 +97,7 @@ fn test_cli_type_argument() {
 
     let mut expected_output = Vec::new();
     expected_output.extend_from_slice(&0xFF01u16.to_be_bytes()); // Text token
-    // Each byte of "test" converted to u16 token
+                                                                 // Each byte of "test" converted to u16 token
     for &byte in b"test" {
         expected_output.extend_from_slice(&(byte as u16).to_be_bytes());
     }
@@ -157,7 +157,7 @@ fn test_cli_chunksize_argument() {
     }
     let output = child.wait_with_output().expect("Failed to read stdout");
     assert!(output.status.success());
-    
+
     // Expected: each byte converted to u16 token (basic tokenization)
     let mut expected_output = Vec::new();
     for &byte in b"some data" {
@@ -183,7 +183,7 @@ fn test_cli_threads_argument() {
     }
     let output = child.wait_with_output().expect("Failed to read stdout");
     assert!(output.status.success());
-    
+
     // Expected: each byte converted to u16 token (basic tokenization)
     let mut expected_output = Vec::new();
     for &byte in b"thread test" {
@@ -208,7 +208,7 @@ fn test_cli_passthrough_mode() {
     }
     let output = child.wait_with_output().expect("Failed to read stdout");
     assert!(output.status.success());
-    
+
     // Passthrough mode should return the input unchanged
     assert_eq!(output.stdout, b"passthrough test");
 }

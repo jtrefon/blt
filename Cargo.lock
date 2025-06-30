@@ -138,7 +138,7 @@ checksum = "1b8e56985ec62d17e9c1001dc89c88ecd7dc08e47eba5ec7c29c7b5eeecde967"
 
 [[package]]
 name = "blt"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "assert_cmd",
  "blt_core",
@@ -155,7 +155,7 @@ dependencies = [
 
 [[package]]
 name = "blt_core"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "async-trait",
  "memmap2",
@@ -168,7 +168,7 @@ dependencies = [
 
 [[package]]
 name = "blt_python"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "blt_core",
  "pyo3",

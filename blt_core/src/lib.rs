@@ -49,7 +49,9 @@ use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tracing::{info, instrument};
 
-use crate::tokenizer::{BasicTokenizationStrategy, BpeStrategy, PassthroughStrategy, TokenizationStrategy};
+use crate::tokenizer::{
+    BasicTokenizationStrategy, BpeStrategy, PassthroughStrategy, TokenizationStrategy,
+};
 
 // --- Module declarations ---
 /// Handles dynamic chunk sizing based on system memory and CLI parameters.
@@ -143,6 +145,7 @@ impl CoreConfig {
     /// * `chunksize`: Optional chunk size as a string (e.g., "16MB").
     /// * `memcap`: Optional memory capacity percentage.
     /// * `passthrough`: Whether to use passthrough mode.
+    #[allow(clippy::too_many_arguments)]
     pub fn new_from_cli(
         input: Option<PathBuf>,
         output: Option<PathBuf>,
