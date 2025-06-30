@@ -10,7 +10,7 @@ resolver = "2" # Using version 2 resolver
 
 [package]
 name = "blt" # This is the binary crate
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021" # Match blt_core for consistency
 
 [dependencies]
