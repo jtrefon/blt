@@ -28,8 +28,11 @@ jobs:
         run: cargo test --workspace --exclude blt_python
 
   test_python:
-    name: Test Python Bindings
+    name: Test Python Bindings on ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust toolchain
@@ -37,7 +40,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.8'
+          python-version: ${{ matrix.python-version }}
       - name: Install maturin and pytest
         run: pip install maturin pytest
       - name: Build and test Python bindings
@@ -113,6 +116,9 @@ jobs:
             target: aarch64-apple-darwin
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            python-version: '3.13'
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust toolchain
@@ -122,7 +128,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.8'
+          python-version: ${{ matrix.python-version || '3.8' }}
       - name: Install maturin
         if: matrix.os == 'ubuntu-latest'
         run: pip install maturin[patchelf]
